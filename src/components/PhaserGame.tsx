@@ -31,6 +31,7 @@ type Props = {
   myPlayerId: string;
   players: { player: Player; presence: Presence }[];
   npcs: Npc[];
+  me?: { player: Player; presence: Presence | null } | null;
   onMove: (x: number, y: number, dir: Presence["direction"]) => void;
   onInteractNpc: (npcId: string) => void;
   latestChat?: { authorId: string; body: string; _creationTime: number } | null;
@@ -40,6 +41,7 @@ export default function PhaserGame({
   myPlayerId,
   players,
   npcs,
+  me,
   onMove,
   onInteractNpc,
   latestChat,
@@ -51,11 +53,13 @@ export default function PhaserGame({
   const onInteractRef = useRef(onInteractNpc);
   const playersRef = useRef(players);
   const npcsRef = useRef(npcs);
+  const meRef = useRef(me);
 
   onMoveRef.current = onMove;
   onInteractRef.current = onInteractNpc;
   playersRef.current = players;
   npcsRef.current = npcs;
+  meRef.current = me;
 
   // Init once
   useEffect(() => {
@@ -88,9 +92,21 @@ export default function PhaserGame({
       try {
         const p = playersRef.current ?? [];
         const n = npcsRef.current ?? [];
-        if (p.length) {
+        const meVal = meRef.current as any;
+        // Ensure my player is always synced even if listOnline is empty (offline case)
+        let playersToSync = p;
+        if (meVal?.player && meVal?.presence) {
+          const hasMe = p.some((pp: any) => pp.player._id === myPlayerId);
+          if (!hasMe) {
+            playersToSync = [
+              ...p,
+              { player: meVal.player, presence: meVal.presence },
+            ] as any;
+          }
+        }
+        if (playersToSync.length) {
           scene.syncPlayers(
-            p.map((pp) => ({
+            playersToSync.map((pp: any) => ({
               id: pp.player._id,
               name: pp.player.name,
               color: pp.player.color,
@@ -100,6 +116,20 @@ export default function PhaserGame({
               isMe: pp.player._id === myPlayerId,
             }))
           );
+        } else if (meVal?.player) {
+          // Fallback: create my container at spawn if no presence yet
+          const spawn = { x: 656, y: 1150, direction: "down" as const };
+          scene.syncPlayers([
+            {
+              id: meVal.player._id,
+              name: meVal.player.name,
+              color: meVal.player.color,
+              x: meVal.presence?.x ?? spawn.x,
+              y: meVal.presence?.y ?? spawn.y,
+              direction: (meVal.presence?.direction as any) ?? "down",
+              isMe: true,
+            },
+          ]);
         }
         if (n.length) {
           scene.syncNpcs(
@@ -162,8 +192,12 @@ export default function PhaserGame({
     }, 80);
     setTimeout(() => clearInterval(iv), 3000);
 
-    const handleFocus = () => game.canvas?.focus();
+    const handleFocus = () => {
+      try { (game.canvas as any)?.focus?.(); containerRef.current?.focus(); } catch {}
+    };
     containerRef.current?.addEventListener("click", handleFocus);
+    // auto-focus for keyboard
+    setTimeout(() => handleFocus(), 300);
 
     return () => {
       clearInterval(iv);
@@ -184,12 +218,12 @@ export default function PhaserGame({
     }
   }, [onMove, onInteractNpc]);
 
-  // sync players
+  // sync players - ensure my player exists even if listOnline is empty (offline)
   useEffect(() => {
     const s = sceneRef.current ?? (gameRef.current?.scene.getScene("OverworldScene") as OverworldScene | null);
     if (!s) return;
     sceneRef.current = s;
-    const mapped = players.map((p) => ({
+    let mapped = players.map((p) => ({
       id: p.player._id,
       name: p.player.name,
       color: p.player.color,
@@ -198,8 +232,23 @@ export default function PhaserGame({
       direction: p.presence.direction,
       isMe: p.player._id === myPlayerId,
     }));
-    s.syncPlayers(mapped);
-  }, [players, myPlayerId]);
+    const meVal: any = me as any;
+    if (meVal?.player && !mapped.some((m) => m.id === myPlayerId)) {
+      mapped = [
+        ...mapped,
+        {
+          id: meVal.player._id,
+          name: meVal.player.name,
+          color: meVal.player.color,
+          x: meVal.presence?.x ?? 656,
+          y: meVal.presence?.y ?? 1150,
+          direction: (meVal.presence?.direction as any) ?? "down",
+          isMe: true,
+        },
+      ];
+    }
+    if (mapped.length) s.syncPlayers(mapped);
+  }, [players, me, myPlayerId]);
 
   useEffect(() => {
     const s = sceneRef.current ?? (gameRef.current?.scene.getScene("OverworldScene") as OverworldScene | null);

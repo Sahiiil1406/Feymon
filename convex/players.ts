@@ -5,8 +5,9 @@ const SPRITES = ["hero_blue", "hero_red", "hero_green", "hero_girl"] as const;
 const COLORS = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899"] as const;
 
 const MAP_SPAWN: Record<string, { x: number; y: number }> = {
-  overworld: { x: 400, y: 300 },
+  overworld: { x: 656, y: 1150 },
   village: { x: 200, y: 200 },
+  town: { x: 656, y: 1150 },
 };
 
 function pickRandom<T>(arr: readonly T[]): T {
