@@ -8,7 +8,9 @@
  * @module
  */
 
+import type * as ai from "../ai.js";
 import type * as crons from "../crons.js";
+import type * as feynman from "../feynman.js";
 import type * as npcs from "../npcs.js";
 import type * as players from "../players.js";
 import type * as seed from "../seed.js";
@@ -23,7 +25,9 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  ai: typeof ai;
   crons: typeof crons;
+  feynman: typeof feynman;
   npcs: typeof npcs;
   players: typeof players;
   seed: typeof seed;

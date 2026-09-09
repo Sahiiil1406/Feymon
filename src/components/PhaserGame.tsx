@@ -34,6 +34,7 @@ type Props = {
   me?: { player: Player; presence: Presence | null } | null;
   onMove: (x: number, y: number, dir: Presence["direction"]) => void;
   onInteractNpc: (npcId: string) => void;
+  onEnterFeynmanTower?: () => void;
   latestChat?: { authorId: string; body: string; _creationTime: number } | null;
 };
 
@@ -44,6 +45,7 @@ export default function PhaserGame({
   me,
   onMove,
   onInteractNpc,
+  onEnterFeynmanTower,
   latestChat,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -51,12 +53,14 @@ export default function PhaserGame({
   const sceneRef = useRef<OverworldScene | null>(null);
   const onMoveRef = useRef(onMove);
   const onInteractRef = useRef(onInteractNpc);
+  const onTowerRef = useRef(onEnterFeynmanTower);
   const playersRef = useRef(players);
   const npcsRef = useRef(npcs);
   const meRef = useRef(me);
 
   onMoveRef.current = onMove;
   onInteractRef.current = onInteractNpc;
+  onTowerRef.current = onEnterFeynmanTower;
   playersRef.current = players;
   npcsRef.current = npcs;
   meRef.current = me;
@@ -156,6 +160,7 @@ export default function PhaserGame({
           callbacks: {
             onMove: (...a: Parameters<Props["onMove"]>) => onMoveRef.current(...a),
             onInteractNpc: (...a: Parameters<Props["onInteractNpc"]>) => onInteractRef.current(...a),
+            onEnterFeynmanTower: (...a: any) => (onTowerRef.current as any)?.(...a),
           },
         });
       } else {
@@ -163,6 +168,7 @@ export default function PhaserGame({
         scene.setCallbacks({
           onMove: (...a: Parameters<Props["onMove"]>) => onMoveRef.current(...a),
           onInteractNpc: (...a: Parameters<Props["onInteractNpc"]>) => onInteractRef.current(...a),
+          onEnterFeynmanTower: (...a: any) => (onTowerRef.current as any)?.(...a),
         });
       }
       const readyScene = game.scene.getScene("OverworldScene") as OverworldScene;
@@ -214,9 +220,10 @@ export default function PhaserGame({
       sceneRef.current.setCallbacks({
         onMove: (...a: Parameters<Props["onMove"]>) => onMoveRef.current(...a),
         onInteractNpc: (...a: Parameters<Props["onInteractNpc"]>) => onInteractRef.current(...a),
+        onEnterFeynmanTower: (...a: any) => (onTowerRef.current as any)?.(...a),
       });
     }
-  }, [onMove, onInteractNpc]);
+  }, [onMove, onInteractNpc, onEnterFeynmanTower]);
 
   // sync players - ensure my player exists even if listOnline is empty (offline)
   useEffect(() => {

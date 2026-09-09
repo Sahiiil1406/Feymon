@@ -22,6 +22,7 @@ type NpcSprite = {
 export type OverworldCallbacks = {
   onMove: (x: number, y: number, dir: PlayerSprite["direction"]) => void;
   onInteractNpc: (npcId: string) => void;
+  onEnterFeynmanTower?: () => void;
 };
 
 export class OverworldScene extends Phaser.Scene {
@@ -55,8 +56,25 @@ export class OverworldScene extends Phaser.Scene {
   ];
   private treeRects: { x: number; y: number; w: number; h: number }[] = [];
 
+  // Big Feynman Tower — north gate dojo (moved per request) — enter home then loop
+  // New location: top-center avenue, clearly outside village houses, near north road
+  private feynmanTower: { x: number; y: number; w: number; h: number } = {
+    x: 640,
+    y: 300,
+    w: 184,
+    h: 154,
+  };
+  private feynmanDoor: { x: number; y: number; w: number; h: number } = {
+    x: 640,
+    y: 372,
+    w: 54,
+    h: 24,
+  };
+  private towerContainer: Phaser.GameObjects.Container | null = null;
+
   private npcsData: NpcSprite[] = [];
   private nearbyNpcId: string | null = null;
+  private towerNearby = false;
   private interactText: Phaser.GameObjects.Text | null = null;
   private interactBg: Phaser.GameObjects.Rectangle | null = null;
 
@@ -137,7 +155,7 @@ export class OverworldScene extends Phaser.Scene {
     title.setScrollFactor(0);
     title.setDepth(61);
 
-    this.interactBg = this.add.rectangle(0, 0, 110, 16, 0xf8f8f8, 1);
+    this.interactBg = this.add.rectangle(0, 0, 128, 16, 0xf8f8f8, 1);
     this.interactBg.setStrokeStyle(3, 0x000000, 1);
     this.interactBg.setDepth(120);
     this.interactBg.setVisible(false);
@@ -151,6 +169,122 @@ export class OverworldScene extends Phaser.Scene {
     this.interactText.setDepth(121);
     this.interactText.setVisible(false);
     this.interactText.setScrollFactor(0);
+
+    this.createFeynmanTower();
+  }
+
+  private createFeynmanTower() {
+    const t = this.feynmanTower;
+    // Clear old
+    if (this.towerContainer) {
+      this.towerContainer.destroy(true);
+      this.towerContainer = null;
+    }
+    const c = this.add.container(t.x, t.y);
+    c.setDepth(t.y + 40);
+
+    // Platform shadow
+    const platform = this.add.rectangle(0, 74, t.w + 24, 18, 0x000000, 0.22);
+    platform.setStrokeStyle(1, 0x000000, 0.3);
+    c.add(platform);
+
+    // Main building body — big dojo, FireRed palette, imposing
+    const body = this.add.rectangle(0, 8, t.w, t.h, 0xf8f8f0, 1);
+    body.setStrokeStyle(4, 0x000000, 1);
+    c.add(body);
+
+    // Brick pattern top band
+    const band = this.add.rectangle(0, -42, t.w - 6, 22, 0x2a4a8c, 1);
+    band.setStrokeStyle(2, 0x000000, 1);
+    c.add(band);
+    // Windows — two eyes
+    const w1 = this.add.rectangle(-38, -6, 26, 28, 0x78d8ff, 1);
+    w1.setStrokeStyle(3, 0x000000, 1);
+    const w2 = this.add.rectangle(38, -6, 26, 28, 0x78d8ff, 1);
+    w2.setStrokeStyle(3, 0x000000, 1);
+    // window shine
+    const shine1 = this.add.rectangle(-42, -10, 6, 6, 0xffffff, 0.9);
+    const shine2 = this.add.rectangle(34, -10, 6, 6, 0xffffff, 0.9);
+    c.add([w1, w2, shine1, shine2]);
+
+    // Big roof
+    const roof = this.add.rectangle(0, -62, t.w + 14, 28, 0xc03028, 1);
+    roof.setStrokeStyle(4, 0x000000, 1);
+    c.add(roof);
+    // Roof ridge
+    const ridge = this.add.rectangle(0, -74, t.w - 20, 8, 0xffcb05, 1);
+    ridge.setStrokeStyle(2, 0x000000, 1);
+    c.add(ridge);
+
+    // Signboard — "FEYNMAN DOJO"
+    const signBg = this.add.rectangle(0, -38, 132, 22, 0xffcb05, 1);
+    signBg.setStrokeStyle(3, 0x000000, 1);
+    const signText = this.add.text(0, -38, "FEYNMAN DOJO", {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: "8px",
+      color: "#000",
+    });
+    signText.setOrigin(0.5);
+    c.add([signBg, signText]);
+
+    // Sub sign "AI SOCRATIC LOOP • STEP INSIDE"
+    const subBg = this.add.rectangle(0, -18, 148, 12, 0x000000, 1);
+    const subText = this.add.text(0, -18, "AI LOOP • ENTER TO TRAIN", {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: "4.5px",
+      color: "#ffcb05",
+    });
+    subText.setOrigin(0.5);
+    c.add([subBg, subText]);
+
+    // Door — glowing
+    const door = this.add.rectangle(0, 58, 46, 44, 0x4a3020, 1);
+    door.setStrokeStyle(3, 0x000000, 1);
+    const doorLight = this.add.rectangle(0, 58, 34, 32, 0xfff8c0, 0.95);
+    doorLight.setStrokeStyle(2, 0xffcb05, 1);
+    const doorText = this.add.text(0, 58, "▶", {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: "11px",
+      color: "#000",
+    });
+    doorText.setOrigin(0.5);
+    this.tweens.add({ targets: doorLight, alpha: 0.55, duration: 700, yoyo: true, repeat: -1 });
+    this.tweens.add({ targets: doorText, x: 2, duration: 600, yoyo: true, repeat: -1 });
+    c.add([door, doorLight, doorText]);
+
+    // Lanterns
+    const lan1 = this.add.circle(-62, 42, 7, 0xffcb05, 1);
+    lan1.setStrokeStyle(2, 0x000000, 1);
+    const lan2 = this.add.circle(62, 42, 7, 0xffcb05, 1);
+    lan2.setStrokeStyle(2, 0x000000, 1);
+    this.tweens.add({ targets: [lan1, lan2], scale: 1.1, duration: 800, yoyo: true, repeat: -1 });
+    c.add([lan1, lan2]);
+
+    // Floating "!" indicator above roof
+    const exBg = this.add.rectangle(0, -86, 18, 18, 0xfff8c0, 1);
+    exBg.setStrokeStyle(2, 0x000000, 1);
+    const ex = this.add.text(0, -86, "AI", {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: "6px",
+      color: "#c00",
+    });
+    ex.setOrigin(0.5);
+    this.tweens.add({ targets: ex, y: -88, duration: 650, yoyo: true, repeat: -1 });
+    this.tweens.add({ targets: exBg, y: -88, duration: 650, yoyo: true, repeat: -1 });
+    c.add([exBg, ex]);
+
+    // Interactive door hitbox
+    const hit = this.add.rectangle(0, 58, 64, 54, 0x000000, 0);
+    hit.setInteractive({ useHandCursor: true });
+    hit.on("pointerdown", () => this.callbacks?.onEnterFeynmanTower?.());
+    c.add(hit);
+
+    this.towerContainer = c;
+
+    // Keep tower on top of ground but below NPC labels: depth set above.
+
+    // Ensure houseRects does not include tower area for fallback collisions already handled
+    // But for Tiled maps we need manual block for tower tiles (no tileset collides there)
   }
 
   private createFallbackWorld() {
@@ -254,9 +388,14 @@ export class OverworldScene extends Phaser.Scene {
     kb.on("keydown-E", () => this.tryInteract());
     kb.on("keydown-SPACE", () => this.tryInteract());
     kb.on("keydown-ENTER", () => this.tryInteract());
-    // Click to move - grid step like FireRed
+    // Click to move - grid step like FireRed, tower door clicks open Dojo
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       const wp = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+      // If clicked on tower door/area, enter dojo directly
+      if (Phaser.Math.Distance.Between(wp.x, wp.y, this.feynmanDoor.x, this.feynmanDoor.y) < 52) {
+        this.callbacks?.onEnterFeynmanTower?.();
+        return;
+      }
       let near = false;
       for (const n of this.npcsData) if (Phaser.Math.Distance.Between(wp.x, wp.y, n.x, n.y) < 32) near = true;
       if (!near && this.myContainer && !this.moving) {
@@ -534,6 +673,20 @@ export class OverworldScene extends Phaser.Scene {
     for (const n of this.npcsData) {
       if (Math.abs(nx - n.x) < 20 && Math.abs(ny - n.y) < 20) return;
     }
+    // Feynman Tower collision — block whole rect except the door gap at bottom center
+    {
+      const t = this.feynmanTower;
+      const d = this.feynmanDoor;
+      const inTower =
+        nx > t.x - t.w / 2 - 8 &&
+        nx < t.x + t.w / 2 + 8 &&
+        ny > t.y - t.h / 2 - 10 &&
+        ny < t.y + t.h / 2 + 10;
+      if (inTower) {
+        const inDoor = nx > d.x - d.w / 2 - 4 && nx < d.x + d.w / 2 + 4 && ny > d.y - 6 && ny < d.y + 16;
+        if (!inDoor) return;
+      }
+    }
     this.moving = true;
     const animKey = dir === "up" ? "misa-back-walk" : dir === "down" ? "misa-front-walk" : dir === "left" ? "misa-left-walk" : "misa-right-walk";
     try {
@@ -563,6 +716,10 @@ export class OverworldScene extends Phaser.Scene {
 
   private updateNearby() {
     if (!this.myContainer || !this.interactText || !this.interactBg) return;
+    // Tower proximity check (before NPCs, larger radius)
+    const towerDist = Phaser.Math.Distance.Between(this.myContainer.x, this.myContainer.y, this.feynmanDoor.x, this.feynmanDoor.y);
+    const nearTower = towerDist < 64;
+
     let closest: string | null = null;
     let best = 48;
     for (const n of this.npcsData) {
@@ -570,13 +727,29 @@ export class OverworldScene extends Phaser.Scene {
       if (d < best) { best = d; closest = n.id; }
     }
     this.nearbyNpcId = closest;
+    this.towerNearby = nearTower;
+
+    if (nearTower) {
+      this.interactBg.setPosition(this.feynmanDoor.x, this.feynmanDoor.y - 22);
+      this.interactText.setPosition(this.feynmanDoor.x, this.feynmanDoor.y - 22);
+      this.interactBg.setSize(142, 16);
+      this.interactText.setText("ENTER: FEYNMAN DOJO");
+      this.interactBg.setVisible(true);
+      this.interactText.setVisible(true);
+      this.interactText.setFontSize("5.5px");
+      return;
+    }
+
     if (closest) {
       const cont = this.npcGroup.get(closest);
       if (cont) {
+        this.interactBg.setSize(110, 16);
         this.interactBg.setPosition(cont.x, cont.y - 30);
         this.interactText.setPosition(cont.x, cont.y - 30);
+        this.interactText.setText("ENTER: TALK");
         this.interactBg.setVisible(true);
         this.interactText.setVisible(true);
+        this.interactText.setFontSize("6px");
       }
     } else {
       this.interactBg.setVisible(false);
@@ -585,6 +758,15 @@ export class OverworldScene extends Phaser.Scene {
   }
 
   private tryInteract() {
+    if (this.towerNearby) {
+      this.callbacks?.onEnterFeynmanTower?.();
+      return;
+    }
     if (this.nearbyNpcId) this.callbacks?.onInteractNpc(this.nearbyNpcId);
+  }
+
+  // For click-to-enter tower
+  public isNearFeynmanTower(x: number, y: number): boolean {
+    return Phaser.Math.Distance.Between(x, y, this.feynmanDoor.x, this.feynmanDoor.y) < 64;
   }
 }

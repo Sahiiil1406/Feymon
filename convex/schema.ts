@@ -119,4 +119,46 @@ export default defineSchema({
     key: v.string(),
     at: v.number(),
   }).index("by_key", ["key"]),
+
+  // === Feynman AI Loop ===
+  feynmanSessions: defineTable({
+    playerId: v.id("players"),
+    topic: v.string(),
+    topicCategory: v.optional(v.string()),
+    status: v.union(
+      v.literal("active"),
+      v.literal("completed"),
+      v.literal("abandoned"),
+    ),
+    turnCount: v.number(), // user turns so far
+    maxTurns: v.number(), // e.g. 5 loops before rating
+    currentQuestion: v.optional(v.string()),
+    // Final rating
+    score: v.optional(v.number()), // 0-100
+    strengths: v.optional(v.array(v.string())),
+    weaknesses: v.optional(v.array(v.string())),
+    feedback: v.optional(v.string()),
+    xpAwarded: v.optional(v.number()),
+    leveledUp: v.optional(v.boolean()),
+    levelBefore: v.number(),
+    levelAfter: v.optional(v.number()),
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_playerId", ["playerId"])
+    .index("by_playerId_and_status", ["playerId", "status"])
+    .index("by_status", ["status"]),
+
+  feynmanTurns: defineTable({
+    sessionId: v.id("feynmanSessions"),
+    role: v.union(
+      v.literal("user"),
+      v.literal("ai_question"),
+      v.literal("ai_feedback"),
+      v.literal("system"),
+    ),
+    content: v.string(),
+    isAudio: v.optional(v.boolean()), // true if from Web Speech API
+    createdAt: v.number(),
+  }).index("by_sessionId", ["sessionId"]),
 });

@@ -8,11 +8,11 @@
 - **Frontend:** not deployed
 - **Convex deployment:** https://watchful-bat-395.convex.cloud
 - **Components:** none
-- **Convex features:** schema, tables, indexes, queries, mutations, crons, realtime queries
+- **Convex features:** schema, tables, indexes, queries, mutations, actions, crons, realtime queries
 - **Auth:** none
-- **AI models:** none
+- **AI models:** gpt-4o-mini, gemini-1.5-flash
 - **Started:** 2026-08-26T15:44:36Z
-- **Last updated:** 2026-08-31T22:09:36Z
+- **Last updated:** 2026-09-09T23:45:00Z
 
 ## Log
 
@@ -30,3 +30,6 @@ Built Feynman × FireRed open-world backend: 8 tables with high-churn split (`pl
 
 ### 2026-08-31 - working tree
 Shipped landscape FireRed world and UI: Phaser 4 `OverworldScene.ts` (1600×1200, 480×270 FIT 16:9, pixelArt, generated grass/path/water/house/tree textures + Kenney CC0 `public/assets/characters/roguelike.png` 918×203 and `public/assets/tiles/tiny-town.png`/`tiny-dungeon.png` + `fire-red-open/` pokemon-inspired/tiny16/tuxemon CC BY/SA), authoritative local movement with 70ms throttle, click-to-move and `E` talk, depth-sorted sprites and chat bubbles; `PhaserGame.tsx` robust refs and GBA-ready lifecycle; `src/App.tsx` FireRed landscape (Press Start 2P/VT323, `4px #000` dialogue, START menu, world chat, trainer/online/NPC panels, mobile tabs) and `src/index.css` pixelated scanlines. Fixed rubber-band (local authoritative, 220px teleport only) and NPC race (defer sync to `ready`). Verified `npm run build` and `npx convex dev --once` clean (`src/game/scenes/OverworldScene.ts`, `src/components/PhaserGame.tsx`, `src/App.tsx`, `src/index.css`).
+
+### 2026-09-09 - working tree
+Added Feynman AI loop with LLM layer and voice interior: extended `convex/schema.ts` with `feynmanSessions`/`feynmanTurns` (topic/status/turnCount/score/strengths/weaknesses/xp + history index) and `convex/convex.config.ts` env `LLM_PROVIDER`/`OPENAI_API_KEY`/`GEMINI_API_KEY`; built `convex/ai.ts` (`use node`, OpenAI `chat/completions` + Gemini `generateContent`, `mock` fallback with deterministic Socratic questions, `callLLM`/`generateCounterQuestionLLM`/`rateSessionLLM`, actions `generateQuestion`/`rate`/`health`, throttled retries) and `convex/feynman.ts` (createSession/ abandon, `submitAndGenerate` action → Counter-Q via LLM, `rateSession` → score/XP/level-up `100*level` curve + `ai_feedback` turn, queries `getActiveSession`/`listSessions`); moved Dojo to north gate `640,300` (`src/game/scenes/OverworldScene.ts` `createFeynmanTower`, door `640,372`, collision + `ENTER: FEYNMAN DOJO`, click door) and wired `PhaserGame.tsx` `onEnterFeynmanTower`; built `src/hooks/useSpeechRecognition.ts` (getUserMedia permission, webkit prefix, throttle 450ms, `network` hiccup auto-clear + `voiceUnavailable` fallback to typing, `no-speech`/`not-allowed` tips) and `src/components/FeynmanLoop.tsx` (topic chips, draft+interim, SPEAK→permission→transcript→SEND→counter loop→GET RATED→strengths/weaknesses/XP) plus `src/components/DojoInterior.tsx` (tatami/desk/sensei lobby → START TRAINING → loop) and `src/lib/ai.ts` provider label, updated `src/App.tsx` interior overlay (`showDojo`), north-gate banner, XP bar, `F` hotkey, toast `LEVEL UP!`; verified `npm run build` and `npx convex codegen` clean. Convex features: schema, tables, indexes, queries, mutations, actions, crons, realtime queries (`convex/schema.ts`, `convex/ai.ts`, `convex/feynman.ts`, `src/hooks/useSpeechRecognition.ts`, `src/components/FeynmanLoop.tsx`).

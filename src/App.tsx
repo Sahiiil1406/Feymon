@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import PhaserGame from "./components/PhaserGame";
+import DojoInterior from "./components/DojoInterior";
 import { getStoredPlayer, setStoredPlayer, clearStoredPlayer } from "./lib/playerStorage";
 
 const COLORS = ["#0ea5e9", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899"];
@@ -61,6 +62,8 @@ export default function App() {
   const [_chatInput, _setChatInput] = useState("");
   void _chatInput; void _setChatInput;
   const [showMenu, setShowMenu] = useState(false);
+  const [showDojo, setShowDojo] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const playerIdConvex = myId as Id<"players"> | null;
   const me = useQuery(api.players.get, playerIdConvex ? { playerId: playerIdConvex } : "skip");
   const online = useQuery(api.players.listOnline, myId ? { mapId: "overworld" } : "skip") as any[] | undefined;
@@ -72,6 +75,7 @@ export default function App() {
   const sendMsg = useMutation(api.worldMessages.send);
   const setOffline = useMutation(api.players.setOffline);
   const topics = useQuery(api.topics.list, myId ? {} : "skip");
+  const activeFeynman = useQuery(api.feynman.getActiveSession, playerIdConvex ? { playerId: playerIdConvex } : "skip") as any | undefined;
   useEffect(() => { if (topics && topics.length === 0) seed({}).catch(() => {}); }, [topics, seed]);
   useEffect(() => {
     if (!playerIdConvex) return;
@@ -84,11 +88,12 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.key === "m" || e.key === "M") && myId) setShowMenu((v) => !v);
-      if (e.key === "Escape") { setShowMenu(false); setActiveNpcId(null); }
+      if ((e.key === "f" || e.key === "F") && myId) setShowDojo((v) => !v);
+      if (e.key === "Escape") { setShowMenu(false); setActiveNpcId(null); if(showDojo) setShowDojo(false); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [myId]);
+  }, [myId, showDojo]);
   const activeNpc = useMemo(() => { if (!activeNpcId || !npcs) return null; return npcs.find((n: any) => n._id === activeNpcId) ?? null; }, [activeNpcId, npcs]);
   const latestChat = useMemo(() => { if (!messages || messages.length === 0) return null; return messages[0]; }, [messages]);
   const lastMoveRef = useRef<{x:number;y:number;dir:string}>({x:0,y:0,dir:"down"});
@@ -109,6 +114,7 @@ export default function App() {
   }, [playerIdConvex, move]);
   const handleMove = doMove;
   const handleInteract = useCallback((id: string) => setActiveNpcId(id), []);
+  const handleEnterTower = useCallback(() => setShowDojo(true), []);
   const _handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     const _body = (_chatInput as string).trim(); if (!_body) return;
@@ -118,8 +124,10 @@ export default function App() {
     if (playerIdConvex) try { await setOffline({ playerId: playerIdConvex }); } catch {}
     clearStoredPlayer(); setMyId(null); setMyName(null);
   };
+  const showToast = (msg: string) => { setToast(msg); setTimeout(()=>setToast(null), 3200); };
   if (!myId) return <><style>{styles}</style><AccountGate onCreated={(id,n)=>{setMyId(id); setMyName(n);}} /></>;
   const isLoading = !me || !online || !npcs;
+  const hasActiveLoop = !!activeFeynman?.session;
   return (
     <>
       <style>{styles}</style>
@@ -130,6 +138,9 @@ export default function App() {
             <span className="fr-title">FEYMON FIRE RED</span>
             <span className="fr-loc">VILLAGE • ROUTE 1</span>
             <span className="fr-live"><i />{online?.length ?? 0} ONLINE</span>
+            <button className={`fr-dojo-btn ${hasActiveLoop ? "active" : ""}`} onClick={() => setShowDojo(true)} title="Enter Feynman Dojo — North Gate (F)">
+              {hasActiveLoop ? "◉ DOJO ●" : "⛩ DOJO"}
+            </button>
             <button className="fr-menu-btn" onClick={() => setShowMenu(!showMenu)}>MENU</button>
             <button className="fr-quit" onClick={handleLogout}>QUIT</button>
           </div>
@@ -138,10 +149,10 @@ export default function App() {
           <div className="fr-game-col">
             <div className="fr-frame">
               {isLoading ? <div className="fr-loading">LOADING...</div> : (
-                <PhaserGame myPlayerId={myId} players={online as any} npcs={npcs as any} me={me as any} onMove={handleMove} onInteractNpc={handleInteract} latestChat={latestChat} />
+                <PhaserGame myPlayerId={myId} players={online as any} npcs={npcs as any} me={me as any} onMove={handleMove} onInteractNpc={handleInteract} onEnterFeynmanTower={handleEnterTower} latestChat={latestChat} />
               )}
-              <div className="fr-loc-banner">FEYMON VILLAGE</div>
-              <div className="fr-ctrl">GRID MOVE: D-PAD/WASD • ENTER: TALK • CLICK GROUND • M: MENU</div>
+              <div className="fr-loc-banner">FEYMON VILLAGE — ⛩ FEYNMAN DOJO AT NORTH GATE (walk north)</div>
+              <div className="fr-ctrl">GRID MOVE: D-PAD/WASD • ENTER: TALK / ENTER DOJO • CLICK DOOR • F: DOJO • M: MENU</div>
               {activeNpc && (
                 <div className="fr-dialog">
                   <div className="fr-dialog-head"><span className="fr-who">{activeNpc.name.toUpperCase()}</span><button className="fr-x" onClick={() => setActiveNpcId(null)}>×</button></div>
@@ -160,19 +171,46 @@ export default function App() {
                       <div className="fr-start-item"><span> </span> NPCs <em>{npcs?.length ?? 0}</em></div>
                       <button className="fr-start-item as-btn" onClick={handleLogout}><span> </span> QUIT</button>
                     </div>
-                    <div className="fr-trainer"><div className="fr-trainer-head">TRAINER</div><div className="fr-trainer-row"><span>NAME</span><b>{myName}</b></div><div className="fr-trainer-row"><span>LV</span><b>{(me as any)?.player?.level ?? 1}</b></div><div className="fr-trainer-row"><span>AT</span><b>{(me as any)?.presence ? `${Math.round((me as any).presence.x)},${Math.round((me as any).presence.y)}` : "—"}</b></div></div>
+                    <div className="fr-trainer"><div className="fr-trainer-head">TRAINER</div><div className="fr-trainer-row"><span>NAME</span><b>{myName}</b></div><div className="fr-trainer-row"><span>LV</span><b>{(me as any)?.player?.level ?? 1}</b></div><div className="fr-trainer-row"><span>XP</span><b>{(me as any)?.player?.xp ?? 0}/{((me as any)?.player?.level ?? 1)*100}</b></div><div className="fr-trainer-row"><span>AT</span><b>{(me as any)?.presence ? `${Math.round((me as any).presence.x)},${Math.round((me as any).presence.y)}` : "—"}</b></div></div>
                   </div>
                 </div>
               )}
+              {showDojo && (
+                <div className="fr-feynman-overlay" onClick={() => setShowDojo(false)}>
+                  <div className="fr-feynman-modal" onClick={e=>e.stopPropagation()}>
+                    <DojoInterior playerId={myId} onExit={()=>setShowDojo(false)} onLeveledUp={(lvl,xp)=>showToast(`LEVEL UP! → LV ${lvl}  +${xp} XP`)} />
+                  </div>
+                </div>
+              )}
+              {toast && <div className="fr-toast">{toast}</div>}
             </div>
           </div>
           <div className="fr-side">
+            <div className="fr-box dojo-box">
+              <div className="fr-box-title">⛩ FEYNMAN DOJO — NORTH GATE</div>
+              <div className="fr-dojo-card">
+                <div className="fr-dojo-icon">⛩</div>
+                <div className="fr-dojo-text">
+                  <b>FEYNMAN DOJO</b>
+                  <span>Moved to north gate — top center</span>
+                  <span>Walk north + ENTER to go inside</span>
+                </div>
+                <button className={`fr-dojo-enter ${hasActiveLoop ? "pulse" : ""}`} onClick={()=>setShowDojo(true)}>{hasActiveLoop ? "● RESUME" : "▶ ENTER HOME"}</button>
+              </div>
+              <div className="fr-dojo-stats">
+                <span>Lv {(me as any)?.player?.level ?? 1}</span>
+                <span className="fr-dojo-xp"><i style={{width:`${Math.min(100, ((me as any)?.player?.xp ?? 0)/((me as any)?.player?.level ?? 1))}%`}} /> {(me as any)?.player?.xp ?? 0} XP</span>
+                <span>{(me as any)?.player?.totalExplanations ?? 0} loops</span>
+              </div>
+              {hasActiveLoop && <div className="fr-dojo-active">● ACTIVE: “{(activeFeynman?.session as any)?.topic}” {activeFeynman?.session.turnCount}/{activeFeynman?.session.maxTurns}</div>}
+              <div className="fr-dojo-hint">Inside: lobby → allow mic → START TRAINING → voice loop → rating &amp; XP</div>
+            </div>
             <div className="fr-box"><div className="fr-box-title">TRAINERS</div><div className="fr-box-list">{!online ? <span className="fr-muted">LOADING...</span> : online.map((o:any)=>(<div key={o.player._id} className={`fr-row ${o.player._id===myId?"me":""}`}><i style={{ background: o.player.color }} /><span>{o.player.name}</span><em>Lv{o.player.level}</em><span className="fr-dot">●</span></div>))}</div></div>
             <div className="fr-box"><div className="fr-box-title">TOWN PEOPLE</div><div className="fr-box-list">{npcs?.map((n:any)=>(<button key={n._id} onClick={()=>handleInteract(n._id)} className={`fr-row-btn ${activeNpcId===n._id?"on":""}`}><i style={{ background: n.color }} /><span>{n.name}</span><em>{n.role}</em></button>))}</div></div>
-            <div className="fr-box soft"><div className="fr-box-title">FIRE RED CONTROLS</div><div className="fr-help"><p>GRID MOVE: One tile per press (32px)</p><p><b>ENTER</b> — TALK to NPC</p><p><b>M</b> — MENU</p><p>Go near character + press <b>ENTER</b> to talk</p></div></div>
+            <div className="fr-box soft"><div className="fr-box-title">FIRE RED CONTROLS</div><div className="fr-help"><p>GRID MOVE: One tile per press (32px)</p><p><b>ENTER</b> — TALK to NPC / enter <b>⛩ DOJO</b> (north gate)</p><p><b>F</b> — Open DOJO anywhere</p><p><b>M</b> — MENU</p><p>Go to <b>FEYNMAN DOJO</b> (north) + <b>ENTER</b> → enter home → START TRAINING</p><p>🎙️ uses <b>Web Speech API</b> — click SPEAK → Allow mic</p><p>LLM via <b>convex/ai.ts</b> — <code>LLM_PROVIDER</code> in .env</p></div></div>
           </div>
         </div>
-        <div className="fr-footer">FEYMON • FIRE RED GRID • LANDSCAPE 16:9 • OPEN SOURCE • NOT AFFILIATED WITH NINTENDO</div>
+        <div className="fr-footer">FEYMON • FIRE RED GRID • FEYNMAN DOJO • OPEN SOURCE • NOT AFFILIATED WITH NINTENDO</div>
       </div>
     </>
   );
@@ -191,6 +229,9 @@ const styles = `
   .fr-live{margin-left:auto;background:#000;color:#fff;padding:6px 10px;border:2px solid #fff;display:flex;align-items:center;gap:6px;box-shadow:2px 2px 0 #000}
   .fr-live i{width:7px;height:7px;background:#22c55e;border-radius:50%;box-shadow:0 0 8px #22c55e;animation:pulse 1.6s infinite}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.7}}
+  .fr-dojo-btn{font-family:'Press Start 2P',monospace;font-size:6px;padding:8px 10px;border:3px solid #000;background:#fff;color:#000;box-shadow:2px 2px 0 #000;cursor:pointer}
+  .fr-dojo-btn.active{background:#ffcb05;animation:blink 0.9s infinite}
+  .fr-dojo-btn:hover{transform:translate(-1px,-1px);box-shadow:3px 3px 0 #000}
   .fr-menu-btn,.fr-quit{font-family:'Press Start 2P',monospace;font-size:6px;padding:8px 12px;border:3px solid #000;box-shadow:2px 2px 0 #000;cursor:pointer;transition:transform 0.08s}
   .fr-menu-btn{background:#ffcb05;color:#000}
   .fr-menu-btn:hover{transform:translate(-1px,-1px);box-shadow:3px 3px 0 #000}
@@ -260,5 +301,25 @@ const styles = `
   .fr-help{padding:10px;font-family:'Press Start 2P',monospace;font-size:6px;line-height:1.7;background:#fff}
   .fr-footer{padding:12px;text-align:center;font-family:'Press Start 2P',monospace;font-size:5px;color:#5a6a8a;border-top:2px solid #1a1a2e;margin-top:16px;letter-spacing:0.04em}
   @media(max-width:900px){ .fr-landscape{grid-template-columns:1fr} .fr-gate-card{grid-template-columns:1fr} .fr-gate-right{border-left:none;border-top:4px solid #000} }
-
+  /* Feynman Dojo */
+  .fr-feynman-overlay{position:absolute;inset:0;z-index:30;background:rgba(0,0,0,0.68);display:grid;place-items:start center;padding:12px;overflow:auto;backdrop-filter:blur(3px)}
+  .fr-feynman-modal{width:min(740px, 96%);margin:12px auto;background:transparent}
+  .fr-toast{position:absolute;top:42px;left:50%;transform:translateX(-50%);background:#000;color:#ffcb05;border:3px solid #ffcb05;padding:10px 16px;font-family:'Press Start 2P',monospace;font-size:7px;box-shadow:4px 4px 0 #000;z-index:40;white-space:nowrap;animation:toastIn 0.2s}
+  @keyframes toastIn{from{transform:translateX(-50%) translateY(-8px);opacity:0}to{transform:translateX(-50%) translateY(0);opacity:1}}
+  .dojo-box{border-color:#c00}
+  .dojo-box .fr-box-title{background:#c00}
+  .fr-dojo-card{display:flex;gap:10px;align-items:center;padding:10px;background:linear-gradient(180deg,#fff 0%,#fff8c0 100%);border-bottom:3px solid #000}
+  .fr-dojo-icon{width:48px;height:48px;display:grid;place-items:center;background:#ffcb05;border:3px solid #000;font-size:22px;box-shadow:2px 2px 0 #000;flex-shrink:0}
+  .fr-dojo-text{display:grid;gap:1px;font-family:'Press Start 2P',monospace;line-height:1.2}
+  .fr-dojo-text b{font-size:7px}
+  .fr-dojo-text span{font-size:5.5px;color:#333;font-family:'VT323',monospace}
+  .fr-dojo-enter{margin-left:auto;padding:9px 12px;background:#ffcb05;border:3px solid #000;font-family:'Press Start 2P',monospace;font-size:6px;box-shadow:2px 2px 0 #000;cursor:pointer;white-space:nowrap}
+  .fr-dojo-enter.pulse{animation:blink 0.9s infinite;background:#fff}
+  .fr-dojo-enter:hover{transform:translate(-1px,-1px);box-shadow:3px 3px 0 #000}
+  .fr-dojo-stats{display:flex;gap:8px;padding:8px;background:#fff;border-bottom:2px solid #000;font-family:'Press Start 2P',monospace;font-size:5.5px}
+  .fr-dojo-stats span{background:#f0f0f0;border:2px solid #000;padding:4px 6px;box-shadow:1px 1px 0 #000}
+  .fr-dojo-xp{flex:1;position:relative;overflow:hidden}
+  .fr-dojo-xp i{position:absolute;left:0;top:0;bottom:0;background:#ffcb05;opacity:0.5;z-index:0}
+  .fr-dojo-active{padding:7px 10px;background:#000;color:#ffcb05;font-family:'Press Start 2P',monospace;font-size:5.5px;letter-spacing:0.02em}
+  .fr-dojo-hint{padding:6px 8px;background:#fff3c0;border-top:2px dashed #bbb;font-family:'Press Start 2P',monospace;font-size:5px;color:#333}
 `;
