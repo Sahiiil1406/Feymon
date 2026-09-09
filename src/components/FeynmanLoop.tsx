@@ -172,7 +172,7 @@ export default function FeynmanLoop({ playerId, onClose, onLeveledUp }: Props) {
         <style>{styles}</style>
         <div className="fl-head">
           <div className="fl-head-left">
-            <span className="fl-badge">FEYNMAN DOJO</span>
+            <span className="fl-badge">Feynman Dojo</span>
             <h2 className="fl-title">AI Socratic Loop</h2>
             <p className="fl-sub">Pick a topic → Explain out loud (🎙️ Web Speech) → AI counters → Get rated → Level up</p>
           </div>
@@ -184,15 +184,15 @@ export default function FeynmanLoop({ playerId, onClose, onLeveledUp }: Props) {
             <div className="fl-result-head">
               <span className="fl-score">{completed.score}<em>/100</em></span>
               <div>
-                <div className="fl-result-title">SESSION RATED</div>
+                <div className="fl-result-title">Session rated</div>
                 <div className="fl-result-sub">+{completed.xpAwarded} XP {completed.leveledUp ? `• LV UP → ${completed.newLevel}!` : ""}</div>
               </div>
             </div>
             {!!completed.feedback && <p className="fl-feedback">“{completed.feedback}”</p>}
             {(completed.strengths?.length || completed.weaknesses?.length) ? (
               <div className="fl-grid2">
-                <div className="fl-col"><span className="fl-col-title ok">STRENGTHS</span><ul>{completed.strengths.map((s, i) => <li key={i}>{s}</li>)}</ul></div>
-                <div className="fl-col"><span className="fl-col-title bad">TO IMPROVE</span><ul>{completed.weaknesses.map((s, i) => <li key={i}>{s}</li>)}</ul></div>
+                <div className="fl-col"><span className="fl-col-title ok">Strengths</span><ul>{completed.strengths.map((s, i) => <li key={i}>{s}</li>)}</ul></div>
+                <div className="fl-col"><span className="fl-col-title bad">To improve</span><ul>{completed.weaknesses.map((s, i) => <li key={i}>{s}</li>)}</ul></div>
               </div>
             ) : null}
             <button className="fl-btn ghost" onClick={() => setCompleted(null)}>Start another loop</button>
@@ -202,7 +202,7 @@ export default function FeynmanLoop({ playerId, onClose, onLeveledUp }: Props) {
         {!completed && (
           <form onSubmit={startSession} className="fl-card">
             <label className="fl-field">
-              <span>TOPIC TO MASTER</span>
+              <span>Topic to master</span>
               <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g. Photosynthesis, Recursion, Black Holes..." maxLength={80} autoFocus />
             </label>
             <div className="fl-chips">
@@ -212,7 +212,7 @@ export default function FeynmanLoop({ playerId, onClose, onLeveledUp }: Props) {
             </div>
             <div className="fl-row">
               <label className="fl-field small">
-                <span>LOOPS BEFORE RATING</span>
+                <span>Loops before rating</span>
                 <select value={maxTurns} onChange={(e) => setMaxTurns(parseInt(e.target.value, 10))}>
                   <option value={3}>3 — quick</option>
                   <option value={4}>4 — standard</option>
@@ -220,7 +220,7 @@ export default function FeynmanLoop({ playerId, onClose, onLeveledUp }: Props) {
                   <option value={6}>6 — mastery</option>
                 </select>
               </label>
-              <button type="submit" disabled={creating} className="fl-btn primary big">{creating ? "OPENING DOJO..." : "► START LOOP"}</button>
+              <button type="submit" disabled={creating} className="fl-btn primary big">{creating ? "Starting…" : "► START LOOP"}</button>
             </div>
             {createErr && <div className="fl-err">{createErr}</div>}
             <p className="fl-hint">Mic tip: Chrome/Edge recommended. Allow microphone when prompted. You can also type.</p>
@@ -229,7 +229,7 @@ export default function FeynmanLoop({ playerId, onClose, onLeveledUp }: Props) {
 
         {!!history && history.length > 0 && (
           <div className="fl-history">
-            <div className="fl-history-title">RECENT LOOPS</div>
+            <div className="fl-history-title">Recent loops</div>
             {history.slice(0, 6).map((h: any) => (
               <div key={h._id} className={`fl-hist-row ${h.status}`}>
                 <span className="fl-hist-topic">{h.topic}</span>
@@ -260,7 +260,7 @@ export default function FeynmanLoop({ playerId, onClose, onLeveledUp }: Props) {
       <style>{styles}</style>
       <div className="fl-head compact">
         <div className="fl-head-left">
-          <span className="fl-badge">LIVE LOOP</span>
+          <span className="fl-badge">Live Loop</span>
           <h2 className="fl-title small">“{sess.topic}”</h2>
           <div className="fl-progress-wrap">
             <div className="fl-progress-label">TURN {sess.turnCount}/{sess.maxTurns}</div>
@@ -383,106 +383,110 @@ export default function FeynmanLoop({ playerId, onClose, onLeveledUp }: Props) {
   );
 }
 
-const styles = `
-  .fl-loading{padding:22px;text-align:center;font-family:'Press Start 2P',monospace;font-size:8px;background:#000;color:#ffcb05;border:3px solid #000}
-  .fl-root{display:flex;flex-direction:column;gap:12px;max-height:min(82dvh, 760px);overflow:auto;background:#f8f8f8;border:4px solid #000;box-shadow:6px 6px 0 #000;padding:12px;font-family:'Inter',system-ui,sans-serif;color:#111}
-  .fl-root.active{padding:0}
-  .fl-root.active .fl-head{padding:12px;border-bottom:4px solid #000}
-  .fl-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;background:linear-gradient(180deg,#2a4a8c 0%,#1e3a6a 100%);color:#fff;padding:14px;border:3px solid #000;box-shadow:3px 3px 0 #000}
-  .fl-head.compact{position:sticky;top:0;z-index:2}
-  .fl-head-left{display:grid;gap:6px}
-  .fl-badge{display:inline-block;background:#ffcb05;color:#000;border:2px solid #000;padding:3px 7px;font-family:'Press Start 2P',monospace;font-size:6px;box-shadow:2px 2px 0 #000;width:fit-content;letter-spacing:0.04em}
-  .fl-title{margin:0;font-family:'Press Start 2P',monospace;font-size:11px;line-height:1.2;text-shadow:1px 1px 0 #000}
-  .fl-title.small{font-size:9px}
-  .fl-sub{margin:0;font-size:13px;color:#c8d6f0;line-height:1.3}
-  .fl-x{width:28px;height:28px;display:grid;place-items:center;background:#ff5a5a;color:#fff;border:3px solid #000;box-shadow:2px 2px 0 #000;cursor:pointer;font:700 18px/1 monospace}
-  .fl-card{background:#fff;border:3px solid #000;box-shadow:3px 3px 0 #000;padding:12px;display:grid;gap:10px}
+const styles = `.fl-loading{padding:16px;text-align:center;font-size:13px;color:#78716c;background:#fff;border:1px solid #e9ddd0;border-radius:12px}
+  .fl-root{display:flex;flex-direction:column;gap:10px;height:100%;max-height:none;overflow:auto;background:#fff;padding:14px;font-family:'Inter',system-ui,sans-serif;color:#1c1917}
+  .fl-root.active{padding:0;overflow:hidden;height:100%;display:flex;flex-direction:column}
+  .fl-root.active .fl-head{padding:12px 14px;border-bottom:1px solid #f2e8d9;flex-shrink:0}
+  .fl-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;background:#fdfbf7;padding:12px 14px;border:1px solid #f2e8d9;border-radius:12px;flex-shrink:0}
+  .fl-head.compact{position:sticky;top:0;z-index:2;border:none;border-bottom:1px solid #f2e8d9;border-radius:0;background:#fdfbf7}
+  .fl-head-left{display:grid;gap:4px}
+  .fl-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:#1c1917;color:#fdfbf7;border-radius:999px;font-size:11px;font-weight:600;letter-spacing:-0.01em;width:fit-content}
+  .fl-badge::before{content:"";width:6px;height:6px;background:#22c55e;border-radius:50%}
+  .fl-title{margin:0;font-size:15px;font-weight:600;letter-spacing:-0.02em;line-height:1.2;color:#1c1917}
+  .fl-title.small{font-size:13.5px}
+  .fl-sub{margin:0;font-size:12.5px;color:#78716c;line-height:1.45}
+  .fl-x{width:32px;height:32px;display:grid;place-items:center;background:#fff;border:1px solid #e9ddd0;border-radius:999px;color:#78716c;cursor:pointer;font:18px/1 monospace;transition:all 0.12s}
+  .fl-x:hover{background:#fdfbf7;color:#1c1917}
+  .fl-card{background:#fdfbf7;border:1px solid #f2e8d9;border-radius:14px;padding:12px;display:grid;gap:10px}
   .fl-field{display:grid;gap:5px}
-  .fl-field span{font-family:'Press Start 2P',monospace;font-size:6px;letter-spacing:0.04em}
-  .fl-field input,.fl-field select{padding:10px 11px;border:3px solid #000;font-family:'Press Start 2P',monospace;font-size:7px;background:#fffff8;box-shadow:inset 2px 2px 0 rgba(0,0,0,0.06)}
+  .fl-field span{font-size:11.5px;font-weight:600;letter-spacing:-0.01em;color:#292524}
+  .fl-field input,.fl-field select{padding:10px 11px;border:1px solid #e7ddd0;border-radius:10px;background:#fff;font-size:13px;transition:border-color 0.15s}
+  .fl-field input:focus,.fl-field select:focus{outline:none;border-color:#1c1917;box-shadow:0 0 0 3px rgba(28,25,23,0.08)}
   .fl-field select{cursor:pointer}
   .fl-field.small{flex:1}
   .fl-chips{display:flex;flex-wrap:wrap;gap:6px}
-  .fl-chip{padding:6px 9px;border:2px solid #000;background:#f0f0f0;font-family:'Press Start 2P',monospace;font-size:5.5px;cursor:pointer;box-shadow:1px 1px 0 #000}
-  .fl-chip.on{background:#ffcb05}
+  .fl-chip{padding:6px 10px;border:1px solid #e9ddd0;background:#fff;border-radius:999px;font-size:12px;font-weight:500;cursor:pointer;transition:all 0.12s}
+  .fl-chip:hover{border-color:#d6c7b8}
+  .fl-chip.on{background:#1c1917;color:#fdfbf7;border-color:#1c1917}
   .fl-row{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
-  .fl-btn{padding:10px 14px;border:3px solid #000;background:#fff;font-family:'Press Start 2P',monospace;font-size:7px;box-shadow:3px 3px 0 #000;cursor:pointer;letter-spacing:0.02em}
-  .fl-btn:disabled{opacity:0.55;cursor:not-allowed}
-  .fl-btn:active:not(:disabled){transform:translate(2px,2px);box-shadow:1px 1px 0 #000}
-  .fl-btn.primary{background:#ffcb05;color:#000}
-  .fl-btn.big{padding:12px 16px;font-size:7px}
+  .fl-btn{padding:9px 14px;border-radius:999px;border:1px solid #e7ddd0;background:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.12s;color:#1c1917}
+  .fl-btn:disabled{opacity:0.5;cursor:not-allowed}
+  .fl-btn:hover:not(:disabled){background:#fdfbf7}
+  .fl-btn:active:not(:disabled){transform:scale(0.99)}
+  .fl-btn.primary{background:#1c1917;color:#fdfbf7;border-color:#1c1917}
+  .fl-btn.primary:hover:not(:disabled){opacity:0.92}
+  .fl-btn.big{padding:10px 16px}
   .fl-btn.ghost{background:#fff}
-  .fl-btn.sm{padding:7px 10px;font-size:6px}
-  .fl-btn.mic{min-width:96px}
-  .fl-btn.mic.on{background:#ff5a5a;color:#fff;animation:pulseMic 1.1s infinite}
-  @keyframes pulseMic{0%,100%{box-shadow:3px 3px 0 #000}50%{box-shadow:0 0 10px #ff5a5a, 3px 3px 0 #000}}
-  .fl-err{background:#ffe0e0;border:2px solid #c00;padding:8px;font-family:'Press Start 2P',monospace;font-size:6px;color:#900}
-  .fl-warn{background:#fff3c0;border:2px solid #c90;padding:8px;font-size:12px;line-height:1.4}
-  .fl-ok{background:#dcfce7;border:2px solid #166534;padding:8px;font-size:11px;color:#14532d}
-  .fl-mic-ask{display:flex;gap:8px;align-items:center;justify-content:space-between;background:#fff8c0;border:3px solid #000;padding:8px;font-size:11px;line-height:1.3;box-shadow:1px 1px 0 #000;flex-wrap:wrap}
-  .fl-hint{margin:0;font-size:12px;color:#666;line-height:1.3}
+  .fl-btn.sm{padding:6px 10px;font-size:12px}
+  .fl-btn.mic{min-width:88px}
+  .fl-btn.mic.on{background:#1c1917;color:#fdfbf7}
+  .fl-err{padding:9px 11px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;color:#991b1b;font-size:12.5px}
+  .fl-warn{padding:9px 11px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;font-size:12px;line-height:1.45;color:#92400e}
+  .fl-ok{padding:9px 11px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;font-size:12px;color:#166534}
+  .fl-mic-ask{display:flex;gap:8px;align-items:center;justify-content:space-between;background:#fff;border:1px solid #e9ddd0;border-radius:10px;padding:9px 11px;font-size:12px;line-height:1.35;flex-wrap:wrap}
+  .fl-hint{margin:0;font-size:11.5px;color:#a8a29e;line-height:1.35}
   .fl-history{display:grid;gap:6px}
-  .fl-history-title{font-family:'Press Start 2P',monospace;font-size:6px;background:#000;color:#fff;padding:6px 8px;width:fit-content}
-  .fl-hist-row{display:flex;gap:8px;align-items:center;padding:8px 10px;background:#fff;border:2px solid #000;font-family:'Press Start 2P',monospace;font-size:6px;box-shadow:1px 1px 0 #000;flex-wrap:wrap}
-  .fl-hist-row.completed{border-left:6px solid #22c55e}
-  .fl-hist-row.active{border-left:6px solid #ffcb05}
+  .fl-history-title{font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#78716c}
+  .fl-hist-row{display:flex;gap:8px;align-items:center;padding:8px 10px;background:#fff;border:1px solid #f2e8d9;border-radius:10px;font-size:12px;flex-wrap:wrap}
+  .fl-hist-row.completed{border-left:3px solid #22c55e}
+  .fl-hist-row.active{border-left:3px solid #1c1917}
   .fl-hist-row.abandoned{opacity:0.6}
-  .fl-hist-topic{flex:1}
-  .fl-hist-meta{color:#3a5a8c}
-  .fl-hist-score{margin-left:auto;background:#000;color:#fff;padding:4px 6px;border:2px solid #000}
-  .fl-hist-badge{margin-left:auto;padding:3px 6px;border:2px solid #000}
-  .fl-hist-badge.active{background:#ffcb05}
-  .fl-hist-badge.completed{background:#22c55e;color:#fff}
-  .fl-footer-note{font-size:11px;color:#667;padding:6px 2px;border-top:2px dashed #bbb}
-  .fl-footer-note code{background:#000;color:#ffcb05;padding:1px 4px;border:1px solid #000;font-family:monospace;font-size:10px}
-  .fl-dot{width:7px;height:7px;border-radius:50%;background:#22c55e;display:inline-block;vertical-align:middle;margin-right:6px;box-shadow:0 0 6px #22c55e}
-  .fl-result{background:linear-gradient(180deg,#fff 0%,#fff8c0 100%);border:3px solid #000;box-shadow:3px 3px 0 #000;padding:12px;display:grid;gap:10px}
-  .fl-result-head{display:flex;gap:12px;align-items:center}
-  .fl-score{font-family:'Press Start 2P',monospace;font-size:20px;background:#000;color:#ffcb05;border:3px solid #000;padding:10px 12px;box-shadow:3px 3px 0 #000}
-  .fl-score em{font-size:10px}
-  .fl-result-title{font-family:'Press Start 2P',monospace;font-size:8px}
-  .fl-result-sub{font-family:'Press Start 2P',monospace;font-size:6px;color:#3a5a8c}
-  .fl-feedback{margin:0;background:#fff;border:2px solid #000;padding:10px;font-size:13px;line-height:1.4;box-shadow:1px 1px 0 #000}
-  .fl-grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .fl-hist-topic{flex:1;font-weight:500;color:#1c1917}
+  .fl-hist-meta{padding:2px 7px;background:#fdfbf7;border:1px solid #e9ddd0;border-radius:999px;font-size:11px;color:#78716c}
+  .fl-hist-score{margin-left:auto;padding:3px 7px;background:#1c1917;color:#fdfbf7;border-radius:999px;font-size:11px;font-weight:600}
+  .fl-hist-badge{margin-left:auto;padding:3px 7px;border-radius:999px;border:1px solid #e9ddd0;font-size:11px;font-weight:600}
+  .fl-hist-badge.active{background:#1c1917;color:#fdfbf7;border-color:#1c1917}
+  .fl-hist-badge.completed{background:#dcfce7;color:#166534;border-color:#bbf7d0}
+  .fl-footer-note{font-size:11px;color:#a8a29e;padding:6px 0;border-top:1px solid #f5efe6}
+  .fl-footer-note code{padding:1px 5px;background:#fdfbf7;border:1px solid #e9ddd0;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:10px;color:#1c1917}
+  .fl-dot{width:6px;height:6px;border-radius:50%;background:#22c55e;display:inline-block;vertical-align:middle;margin-right:6px}
+  .fl-result{background:#fdfbf7;border:1px solid #f2e8d9;border-radius:14px;padding:12px;display:grid;gap:10px}
+  .fl-result-head{display:flex;gap:10px;align-items:center}
+  .fl-score{font-size:17px;font-weight:700;background:#1c1917;color:#fdfbf7;border-radius:12px;padding:8px 12px;letter-spacing:-0.02em}
+  .fl-score em{font-size:11px;font-weight:500;opacity:0.8;font-style:normal;margin-left:2px}
+  .fl-result-title{font-size:13px;font-weight:600;color:#1c1917}
+  .fl-result-sub{font-size:12px;color:#78716c}
+  .fl-feedback{margin:0;background:#fff;border:1px solid #e9ddd0;border-radius:10px;padding:10px;font-size:12.5px;line-height:1.5;color:#292524}
+  .fl-grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   @media(max-width:640px){.fl-grid2{grid-template-columns:1fr}}
-  .fl-col{background:#fff;border:2px solid #000;padding:8px;box-shadow:1px 1px 0 #000}
-  .fl-col-title{font-family:'Press Start 2P',monospace;font-size:6px;padding:3px 6px;border:2px solid #000;display:inline-block;margin-bottom:6px}
-  .fl-col-title.ok{background:#dcfce7;border-color:#166534;color:#14532d}
-  .fl-col-title.bad{background:#fee2e2;border-color:#991b1b;color:#7f1d1d}
-  .fl-col ul{margin:0;padding-left:16px;font-size:12.5px;line-height:1.35;display:grid;gap:4px}
-  /* active session */
-  .fl-progress-wrap{display:flex;align-items:center;gap:8px}
-  .fl-progress-label{font-family:'Press Start 2P',monospace;font-size:6px;background:#000;color:#fff;padding:4px 6px;border:2px solid #fff}
-  .fl-progress{flex:1;max-width:190px;height:12px;background:#000;border:2px solid #fff;box-shadow:1px 1px 0 #000;overflow:hidden}
-  .fl-progress i{display:block;height:100%;background:linear-gradient(90deg,#ffcb05 0%,#22c55e 100%);transition:width 0.3s}
-  .fl-head-actions{display:flex;gap:8px;align-items:center}
-  .fl-turns{flex:1;min-height:260px;max-height:40vh;overflow:auto;padding:12px;display:grid;gap:8px;background:#e9eef5}
-  .fl-turn{padding:10px;border:3px solid #000;box-shadow:2px 2px 0 #000;background:#fff;display:grid;gap:6px}
-  .fl-turn.ai_question{border-left:6px solid #ffcb05;background:#fffef0}
-  .fl-turn.ai_feedback{border-left:6px solid #22c55e;background:#f0fdf4}
-  .fl-turn.user{border-left:6px solid #3a5a8c;background:#f8fbff}
-  .fl-turn.generating{opacity:0.85}
-  .fl-turn-role{font-family:'Press Start 2P',monospace;font-size:5.5px;letter-spacing:0.04em;color:#000;background:#000;color:#fff;padding:3px 6px;width:fit-content}
-  .fl-turn.ai_question .fl-turn-role{background:#ffcb05;color:#000;border:2px solid #000}
-  .fl-turn.user .fl-turn-role{background:#1e3a6a;color:#fff}
-  .fl-turn-body{font-size:13.5px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+  .fl-col{background:#fff;border:1px solid #e9ddd0;border-radius:10px;padding:10px}
+  .fl-col-title{font-size:10.5px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;padding:3px 7px;border-radius:999px;display:inline-block;margin-bottom:6px}
+  .fl-col-title.ok{background:#dcfce7;color:#166534}
+  .fl-col-title.bad{background:#fee2e2;color:#991b1b}
+  .fl-col ul{margin:0;padding-left:14px;font-size:12px;line-height:1.45;display:grid;gap:3px;color:#292524}
+  .fl-progress-wrap{display:flex;align-items:center;gap:8px;margin-top:3px}
+  .fl-progress-label{font-size:11px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#78716c}
+  .fl-progress{flex:1;max-width:160px;height:6px;background:#f5efe6;border-radius:999px;overflow:hidden}
+  .fl-progress i{display:block;height:100%;background:#1c1917;transition:width 0.3s;border-radius:999px}
+  .fl-head-actions{display:flex;gap:6px;align-items:center}
+  .fl-turns{flex:1;min-height:160px;max-height:none;overflow:auto;padding:12px;display:grid;gap:8px;background:#fdfbf7;align-content:start}
+  .fl-turn{padding:10px 11px;border:1px solid #e9ddd0;border-radius:12px;background:#fff;display:grid;gap:5px}
+  .fl-turn.ai_question{border-color:#e9ddd0;background:#fff}
+  .fl-turn.ai_feedback{background:#f0fdf4;border-color:#bbf7d0}
+  .fl-turn.user{background:#eff6ff;border-color:#dbeafe}
+  .fl-turn.generating{opacity:0.8}
+  .fl-turn-role{font-size:10.5px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#78716c}
+  .fl-turn.ai_question .fl-turn-role{color:#1c1917}
+  .fl-turn.user .fl-turn-role{color:#2563eb}
+  .fl-turn-body{font-size:13px;line-height:1.55;color:#1c1917;white-space:pre-wrap;word-break:break-word}
   .fl-turn-body.pulse{animation:pulse 1s infinite}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
-  .fl-turn-time{font-family:'Press Start 2P',monospace;font-size:5px;color:#888;justify-self:end}
-  .fl-currentQ{padding:10px;background:#ffcb05;border:3px solid #000;box-shadow:2px 2px 0 #000}
-  .fl-currentQ-label{font-family:'Press Start 2P',monospace;font-size:6px;background:#000;color:#ffcb05;padding:3px 6px}
-  .fl-currentQ p{margin:8px 0 0 0;font-family:'Press Start 2P',monospace;font-size:7px;line-height:1.6}
-  .fl-needs{padding:10px;background:#dcfce7;border:3px solid #166534;font-family:'Press Start 2P',monospace;font-size:6.5px;line-height:1.5;box-shadow:2px 2px 0 #000}
-  .fl-composer{padding:12px;background:#fff;border-top:4px solid #000;display:grid;gap:8px}
+  .fl-turn-time{font-size:10.5px;color:#a8a29e;justify-self:end}
+  .fl-currentQ{padding:10px 12px;background:#1c1917;color:#fdfbf7;border-radius:12px}
+  .fl-currentQ-label{font-size:10.5px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;opacity:0.7}
+  .fl-currentQ p{margin:6px 0 0 0;font-size:12.5px;line-height:1.5}
+  .fl-needs{padding:10px 11px;background:#dcfce7;border:1px solid #bbf7d0;border-radius:10px;font-size:12px;color:#166534}
+  .fl-composer{padding:12px;background:#fff;border-top:1px solid #f2e8d9;display:grid;gap:8px;flex-shrink:0}
   .fl-composer-top{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
-  .fl-field-label{font-family:'Press Start 2P',monospace;font-size:6px;background:#000;color:#fff;padding:4px 6px}
-  .fl-mic-hint{font-family:'Press Start 2P',monospace;font-size:5px;color:#666;background:#f0f0f0;border:1px solid #000;padding:3px 6px}
-  .fl-textarea{width:100%;padding:10px;border:3px solid #000;font-family:'Inter',sans-serif;font-size:14px;line-height:1.4;resize:vertical;background:#fffff8;box-shadow:inset 2px 2px 0 rgba(0,0,0,0.06)}
-  .fl-textarea.listening{background:#fff3c0;outline:3px solid #ffcb05}
-  .fl-composer-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .fl-field-label{font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#78716c}
+  .fl-mic-hint{font-size:10.5px;color:#a8a29e;background:#fdfbf7;border:1px solid #f2e8d9;padding:3px 7px;border-radius:999px}
+  .fl-textarea{width:100%;padding:10px 11px;border:1px solid #e7ddd0;border-radius:10px;font-family:'Inter',sans-serif;font-size:13px;line-height:1.5;resize:vertical;min-height:72px;background:#fff;transition:border-color 0.15s, box-shadow 0.15s}
+  .fl-textarea:focus{outline:none;border-color:#1c1917;box-shadow:0 0 0 3px rgba(28,25,23,0.08)}
+  .fl-textarea.listening{border-color:#1c1917;background:#fdfbf7}
+  .fl-composer-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
   .fl-grow{flex:1}
-  .fl-char{font-family:'Press Start 2P',monospace;font-size:5px;color:#888}
-  .fl-rate-box{padding:12px;background:linear-gradient(180deg,#fff 0%,#f0fdf4 100%);border-top:4px solid #000;display:grid;gap:10px}
-  .fl-rate-copy{margin:0;font-size:13px;line-height:1.4;background:#fff;border:2px solid #000;padding:10px;box-shadow:1px 1px 0 #000}
+  .fl-char{font-size:11px;color:#a8a29e}
+  .fl-rate-box{padding:12px;background:#fdfbf7;border-top:1px solid #f2e8d9;display:grid;gap:10px;flex-shrink:0}
+  .fl-rate-copy{margin:0;font-size:12.5px;line-height:1.5;background:#fff;border:1px solid #e9ddd0;border-radius:10px;padding:10px;color:#292524}
   .fl-rate-actions{display:flex;gap:8px;flex-wrap:wrap}
 `;

@@ -1,0 +1,416 @@
+{
+  "frames": {
+    "misa-back-walk.000": {
+      "frame": {
+        "x": 194,
+        "y": 2,
+        "w": 64,
+        "h": 82
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 46,
+        "w": 64,
+        "h": 82
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 128
+      }
+    },
+    "misa-back-walk.001": {
+      "frame": {
+        "x": 194,
+        "y": 88,
+        "w": 64,
+        "h": 82
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 46,
+        "w": 64,
+        "h": 82
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 128
+      }
+    },
+    "misa-back-walk.002": {
+      "frame": {
+        "x": 262,
+        "y": 2,
+        "w": 64,
+        "h": 82
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 46,
+        "w": 64,
+        "h": 82
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 128
+      }
+    },
+    "misa-back-walk.003": {
+      "frame": {
+        "x": 194,
+        "y": 88,
+        "w": 64,
+        "h": 82
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 46,
+        "w": 64,
+        "h": 82
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 128
+      }
+    },
+    "misa-back": {
+      "frame": {
+        "x": 194,
+        "y": 88,
+        "w": 64,
+        "h": 82
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 46,
+        "w": 64,
+        "h": 82
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 128
+      }
+    },
+    "misa-front-walk.000": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 60,
+        "h": 86
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 2,
+        "y": 42,
+        "w": 60,
+        "h": 86
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 128
+      }
+    },
+    "misa-front-walk.001": {
+      "frame": {
+        "x": 66,
+        "y": 2,
+        "w": 60,
+        "h": 86
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 2,
+        "y": 42,
+        "w": 60,
+        "h": 86
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 128
+      }
+    },
+    "misa-front-walk.002": {
+      "frame": {
+        "x": 130,
+        "y": 2,
+        "w": 60,
+        "h": 86
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 2,
+        "y": 42,
+        "w": 60,
+        "h": 86
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 128
+      }
+    },
+    "misa-front-walk.003": {
+      "frame": {
+        "x": 66,
+        "y": 2,
+        "w": 60,
+        "h": 86
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 2,
+        "y": 42,
+        "w": 60,
+        "h": 86
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 128
+      }
+    },
+    "misa-front": {
+      "frame": {
+        "x": 66,
+        "y": 2,
+        "w": 60,
+        "h": 86
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 2,
+        "y": 42,
+        "w": 60,
+        "h": 86
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 128
+      }
+    },
+    "misa-left-walk.000": {
+      "frame": {
+        "x": 2,
+        "y": 92,
+        "w": 60,
+        "h": 78
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 2,
+        "y": 50,
+        "w": 60,
+        "h": 78
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 128
+      }
+    },
+    "misa-left-walk.001": {
+      "frame": {
+        "x": 262,
+        "y": 88,
+        "w": 60,
+        "h": 82
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 2,
+        "y": 46,
+        "w": 60,
+        "h": 82
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 128
+      }
+    },
+    "misa-left-walk.002": {
+      "frame": {
+        "x": 66,
+        "y": 92,
+        "w": 60,
+        "h": 78
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 2,
+        "y": 50,
+        "w": 60,
+        "h": 78
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 128
+      }
+    },
+    "misa-left-walk.003": {
+      "frame": {
+        "x": 262,
+        "y": 88,
+        "w": 60,
+        "h": 82
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 2,
+        "y": 46,
+        "w": 60,
+        "h": 82
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 128
+      }
+    },
+    "misa-left": {
+      "frame": {
+        "x": 262,
+        "y": 88,
+        "w": 60,
+        "h": 82
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 2,
+        "y": 46,
+        "w": 60,
+        "h": 82
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 128
+      }
+    },
+    "misa-right-walk.000": {
+      "frame": {
+        "x": 130,
+        "y": 92,
+        "w": 60,
+        "h": 78
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 2,
+        "y": 50,
+        "w": 60,
+        "h": 78
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 128
+      }
+    },
+    "misa-right-walk.001": {
+      "frame": {
+        "x": 326,
+        "y": 88,
+        "w": 60,
+        "h": 82
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 2,
+        "y": 46,
+        "w": 60,
+        "h": 82
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 128
+      }
+    },
+    "misa-right-walk.002": {
+      "frame": {
+        "x": 330,
+        "y": 2,
+        "w": 60,
+        "h": 78
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 2,
+        "y": 50,
+        "w": 60,
+        "h": 78
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 128
+      }
+    },
+    "misa-right-walk.003": {
+      "frame": {
+        "x": 326,
+        "y": 88,
+        "w": 60,
+        "h": 82
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 2,
+        "y": 46,
+        "w": 60,
+        "h": 82
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 128
+      }
+    },
+    "misa-right": {
+      "frame": {
+        "x": 326,
+        "y": 88,
+        "w": 60,
+        "h": 82
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 2,
+        "y": 46,
+        "w": 60,
+        "h": 82
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 128
+      }
+    }
+  },
+  "meta": {
+    "app": "http://www.codeandweb.com/texturepacker",
+    "version": "1.0",
+    "image": "atlas.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 392,
+      "h": 172
+    },
+    "scale": "1",
+    "smartupdate": "$TexturePacker:SmartUpdate:153aa30e8e4e7c6fb0cfe9ff6ead8419:0bf85290c274470ae6499145fc94b88b:cbce6b53f0f49e0bf15173c25c41f876$"
+  }
+}

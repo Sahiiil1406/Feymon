@@ -25,6 +25,24 @@ export type OverworldCallbacks = {
   onEnterFeynmanTower?: () => void;
 };
 
+// Distinct HD sprite mapping per NPC - each NPC gets its own atlas frame base
+// Uses the diverse 14 characters in players.png (professor, nurse, knight, ninja, etc.)
+const NPC_SPRITE_MAP: Record<string, string> = {
+  "Prof. Oak": "professor",
+  "Curious Maya": "girl1",
+  "Rival Kai": "knight",
+  "Stargazer Nova": "omnichannelfemale", // elegant stargazer
+  "Coder Lin": "red", // hacker vibe - red cap
+  "Nurse Joy": "nurse",
+};
+// Fallback cycle for unknown NPCs
+const NPC_SPRITE_CYCLE = ["femaletrainer", "boss", "teamxerogrunt1", "tuxemartemployee", "omnichannelceo", "misa"];
+
+function getNpcSpriteBase(name: string, fallbackIdx: number = 0): string {
+  if (NPC_SPRITE_MAP[name]) return NPC_SPRITE_MAP[name]!;
+  return NPC_SPRITE_CYCLE[fallbackIdx % NPC_SPRITE_CYCLE.length]!;
+}
+
 export class OverworldScene extends Phaser.Scene {
   private cursors: Phaser.Types.Input.Keyboard.CursorKeys | null = null;
   private keyW!: Phaser.Input.Keyboard.Key;
@@ -56,19 +74,19 @@ export class OverworldScene extends Phaser.Scene {
   ];
   private treeRects: { x: number; y: number; w: number; h: number }[] = [];
 
-  // Big Feynman Tower — north gate dojo (moved per request) — enter home then loop
-  // New location: top-center avenue, clearly outside village houses, near north road
+  // Reused big building as Dojo: town-center-middle (448,480,224x96) from Tiled IndoorZones
+  // This is the large central building with tiled roof, directly south of former north-gate tower
   private feynmanTower: { x: number; y: number; w: number; h: number } = {
-    x: 640,
-    y: 300,
-    w: 184,
-    h: 154,
+    x: 560,
+    y: 528,
+    w: 220,
+    h: 96,
   };
   private feynmanDoor: { x: number; y: number; w: number; h: number } = {
-    x: 640,
-    y: 372,
-    w: 54,
-    h: 24,
+    x: 560,
+    y: 582,
+    w: 44,
+    h: 22,
   };
   private towerContainer: Phaser.GameObjects.Container | null = null;
 
@@ -95,15 +113,21 @@ export class OverworldScene extends Phaser.Scene {
   setMyId(id: string) { this.myId = id; }
 
   preload() {
-    // PokeMMO-Online assets - Tiled town + tuxmon 32px extruded + player atlases
-    // Original repo: aaron5670/PokeMMO-Online-Realtime-Multiplayer-Game (Phaser 3 + Colyseus)
-    // We keep only open-world + NPC dialog, no WildEncounter/Battle
+    // HD priority: try HD atlases first, fallback to SD
+    // We generated 2x HD assets: atlas-hd.png 392x172, players-hd.png 966x494
     this.load.image("TilesTown", "/assets/tilesets/tuxmon-sample-32px-extruded.png");
+    // Also preload HD tileset for future use (not yet bound to map, but cached for crisp fallback)
+    this.load.image("TilesTownHD", "/assets/tilesets/tuxmon-sample-32px-extruded-hd.png");
+    this.load.image("PastoralHD", "/assets/tilesets/pastoral-hd.png");
     this.load.tilemapTiledJSON("town", "/assets/tilemaps/town.json");
+    // Use HD atlases if available - they are 2x crisp for 1080p
+    this.load.atlas("currentPlayerHD", "/assets/atlas/atlas-hd.png", "/assets/atlas/atlas-hd.json");
+    this.load.atlas("playersHD", "/assets/atlas/players-hd.png", "/assets/atlas/players-hd.json");
+    // Fallback SD
     this.load.atlas("currentPlayer", "/assets/atlas/atlas.png", "/assets/atlas/atlas.json");
     this.load.atlas("players", "/assets/atlas/players.png", "/assets/atlas/players.json");
-    // Fallback Kenney for NPCs if needed
     this.load.spritesheet("chars", "/assets/characters/roguelike.png", { frameWidth: 16, frameHeight: 16, margin: 1, spacing: 1 });
+    this.load.spritesheet("charsHD", "/assets/characters/roguelike-hd.png", { frameWidth: 32, frameHeight: 32, margin: 2, spacing: 2 });
   }
 
   create() {
@@ -118,7 +142,6 @@ export class OverworldScene extends Phaser.Scene {
   }
 
   private createWorld() {
-    // Load Tiled town map - landscape 16:9, 32px tiles, multiple layers (PokeMMO-Online)
     try {
       this.map = this.make.tilemap({ key: "town" });
       const tileset = this.map.addTilesetImage("tuxmon-sample-32px-extruded", "TilesTown");
@@ -133,7 +156,6 @@ export class OverworldScene extends Phaser.Scene {
       this.mapHeight = this.map.heightInPixels;
       this.physics.world.setBounds(0, 0, this.mapWidth, this.mapHeight);
       if (belowLayer) belowLayer.setDepth(0);
-      // Tiled handles house/tree collisions via tiles, no manual rects needed
       this.houseRects = [];
       this.treeRects = [];
     } catch (e) {
@@ -141,163 +163,168 @@ export class OverworldScene extends Phaser.Scene {
       this.createFallbackWorld();
     }
 
-    // UI
-    const banner = this.add.rectangle(this.mapWidth / 2, 16, 320, 20, 0x3a5a8c, 1);
-    banner.setStrokeStyle(3, 0x000000, 1);
+    // HD Ambient: subtle vignette and soft light overlay for 1080p depth
+    // Top gradient light
+    const vignette = this.add.graphics();
+    vignette.fillGradientStyle(0x1c1917, 0x1c1917, 0xf7f3ec, 0xf7f3ec, 0.08, 0.08, 0, 0);
+    vignette.fillRect(0, 0, this.mapWidth, 220);
+    vignette.setDepth(5);
+    vignette.setScrollFactor(0);
+    vignette.setAlpha(0.6);
+
+    // HD Banner - Inter, not pixel font, crisp
+    const banner = this.add.rectangle(this.mapWidth / 2, 20, 300, 28, 0x1c1917, 0.88);
+    banner.setStrokeStyle(1, 0xe9ddd0, 0.9);
     banner.setScrollFactor(0);
     banner.setDepth(60);
-    const title = this.add.text(this.mapWidth / 2, 16, "FEYMON TOWN", {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: "7px",
-      color: "#fff",
+    // subtle shadow
+    const bannerShadow = this.add.rectangle(this.mapWidth / 2 + 1, 21, 300, 28, 0x000000, 0.12);
+    bannerShadow.setDepth(59);
+    bannerShadow.setScrollFactor(0);
+    const title = this.add.text(this.mapWidth / 2, 20, "FEYMON VILLAGE", {
+      fontFamily: "'Inter', system-ui, sans-serif",
+      fontSize: "11px",
+      color: "#fdfbf7",
+      fontStyle: "600",
     });
     title.setOrigin(0.5);
     title.setScrollFactor(0);
     title.setDepth(61);
+    title.setLetterSpacing(2);
 
-    this.interactBg = this.add.rectangle(0, 0, 128, 16, 0xf8f8f8, 1);
-    this.interactBg.setStrokeStyle(3, 0x000000, 1);
+    // HD Interact prompt - minimal, Inter, rounded
+    this.interactBg = this.add.rectangle(0, 0, 140, 22, 0x1c1917, 0.92);
+    this.interactBg.setStrokeStyle(1, 0xe9ddd0, 0.8);
     this.interactBg.setDepth(120);
     this.interactBg.setVisible(false);
-    this.interactBg.setScrollFactor(0);
-    this.interactText = this.add.text(0, 0, "ENTER: TALK", {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: "6px",
-      color: "#000",
+    // world-following prompt above NPC/door
+    // make it rounded via graphics? rectangle is fine, but we can add radius via setOrigin and graphics
+    this.interactText = this.add.text(0, 0, "ENTER  TALK", {
+      fontFamily: "'Inter', system-ui, sans-serif",
+      fontSize: "11px",
+      color: "#fdfbf7",
+      fontStyle: "600",
     });
     this.interactText.setOrigin(0.5);
     this.interactText.setDepth(121);
     this.interactText.setVisible(false);
-    this.interactText.setScrollFactor(0);
+    this.interactText.setLetterSpacing(0.5);
 
     this.createFeynmanTower();
   }
 
   private createFeynmanTower() {
+    // Now reuses the BIG existing building (town-center-middle) instead of drawing a separate tower.
+    // We only add a subtle HD overlay: door glow, welcome mat, sign, lanterns, and indicator
+    // so the building feels like the Dojo entrance without covering tilemap art.
     const t = this.feynmanTower;
-    // Clear old
+    const d = this.feynmanDoor;
     if (this.towerContainer) {
       this.towerContainer.destroy(true);
       this.towerContainer = null;
     }
     const c = this.add.container(t.x, t.y);
-    c.setDepth(t.y + 40);
+    // Keep overlay just above ground but below player/Above Player layer
+    c.setDepth(2);
 
-    // Platform shadow
-    const platform = this.add.rectangle(0, 74, t.w + 24, 18, 0x000000, 0.22);
-    platform.setStrokeStyle(1, 0x000000, 0.3);
-    c.add(platform);
+    // Welcome mat in front of door (local coords: door is at (0, 54) because tower y=528, door y=582 => dy 54)
+    const doorDy = d.y - t.y; // ~54
+    const mat = this.add.ellipse(0, doorDy + 10, 52, 14, 0x1c1917, 0.10);
+    const matInner = this.add.ellipse(0, doorDy + 10, 36, 9, 0xf59e0b, 0.16);
+    c.add([mat, matInner]);
 
-    // Main building body — big dojo, FireRed palette, imposing
-    const body = this.add.rectangle(0, 8, t.w, t.h, 0xf8f8f0, 1);
-    body.setStrokeStyle(4, 0x000000, 1);
-    c.add(body);
+    // Door glow overlay - subtle, marks entrance on existing tilemap door
+    const doorGlow = this.add.rectangle(0, doorDy, 36, 36, 0xfffbeb, 0.55);
+    doorGlow.setStrokeStyle(1, 0xf59e0b, 0.85);
+    const doorArrow = this.add.text(0, doorDy, "▶", {
+      fontFamily: "'Inter', sans-serif",
+      fontSize: "13px",
+      color: "#1c1917",
+      fontStyle: "700",
+    });
+    doorArrow.setOrigin(0.5);
+    this.tweens.add({ targets: doorGlow, alpha: 0.35, duration: 900, yoyo: true, repeat: -1 });
+    this.tweens.add({ targets: doorArrow, x: 1.5, duration: 700, yoyo: true, repeat: -1 });
+    c.add([doorGlow, doorArrow]);
 
-    // Brick pattern top band
-    const band = this.add.rectangle(0, -42, t.w - 6, 22, 0x2a4a8c, 1);
-    band.setStrokeStyle(2, 0x000000, 1);
-    c.add(band);
-    // Windows — two eyes
-    const w1 = this.add.rectangle(-38, -6, 26, 28, 0x78d8ff, 1);
-    w1.setStrokeStyle(3, 0x000000, 1);
-    const w2 = this.add.rectangle(38, -6, 26, 28, 0x78d8ff, 1);
-    w2.setStrokeStyle(3, 0x000000, 1);
-    // window shine
-    const shine1 = this.add.rectangle(-42, -10, 6, 6, 0xffffff, 0.9);
-    const shine2 = this.add.rectangle(34, -10, 6, 6, 0xffffff, 0.9);
-    c.add([w1, w2, shine1, shine2]);
-
-    // Big roof
-    const roof = this.add.rectangle(0, -62, t.w + 14, 28, 0xc03028, 1);
-    roof.setStrokeStyle(4, 0x000000, 1);
-    c.add(roof);
-    // Roof ridge
-    const ridge = this.add.rectangle(0, -74, t.w - 20, 8, 0xffcb05, 1);
-    ridge.setStrokeStyle(2, 0x000000, 1);
-    c.add(ridge);
-
-    // Signboard — "FEYNMAN DOJO"
-    const signBg = this.add.rectangle(0, -38, 132, 22, 0xffcb05, 1);
-    signBg.setStrokeStyle(3, 0x000000, 1);
-    const signText = this.add.text(0, -38, "FEYNMAN DOJO", {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: "8px",
-      color: "#000",
+    // Sign above door - HD pill
+    const signDy = -22; // slightly above building roof? building top is -48, sign at -22 is middle
+    const signBg = this.add.rectangle(0, signDy, 142, 22, 0xf59e0b, 1);
+    signBg.setStrokeStyle(1, 0x1c1917, 0.7);
+    const signText = this.add.text(0, signDy, "FEYNMAN DOJO", {
+      fontFamily: "'Inter', system-ui, sans-serif",
+      fontSize: "9px",
+      color: "#1c1917",
+      fontStyle: "700",
     });
     signText.setOrigin(0.5);
+    signText.setLetterSpacing(1.2);
     c.add([signBg, signText]);
 
-    // Sub sign "AI SOCRATIC LOOP • STEP INSIDE"
-    const subBg = this.add.rectangle(0, -18, 148, 12, 0x000000, 1);
-    const subText = this.add.text(0, -18, "AI LOOP • ENTER TO TRAIN", {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: "4.5px",
-      color: "#ffcb05",
+    const subDy = -4;
+    const subBg = this.add.rectangle(0, subDy, 150, 13, 0x1c1917, 1);
+    const subText = this.add.text(0, subDy, "AI  LOOP  •  ENTER TO TRAIN", {
+      fontFamily: "'Inter', system-ui, sans-serif",
+      fontSize: "6px",
+      color: "#fde68a",
+      fontStyle: "600",
     });
     subText.setOrigin(0.5);
+    subText.setLetterSpacing(0.8);
     c.add([subBg, subText]);
 
-    // Door — glowing
-    const door = this.add.rectangle(0, 58, 46, 44, 0x4a3020, 1);
-    door.setStrokeStyle(3, 0x000000, 1);
-    const doorLight = this.add.rectangle(0, 58, 34, 32, 0xfff8c0, 0.95);
-    doorLight.setStrokeStyle(2, 0xffcb05, 1);
-    const doorText = this.add.text(0, 58, "▶", {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: "11px",
-      color: "#000",
-    });
-    doorText.setOrigin(0.5);
-    this.tweens.add({ targets: doorLight, alpha: 0.55, duration: 700, yoyo: true, repeat: -1 });
-    this.tweens.add({ targets: doorText, x: 2, duration: 600, yoyo: true, repeat: -1 });
-    c.add([door, doorLight, doorText]);
+    // Lanterns flanking door
+    const lanDy = doorDy - 6;
+    const lan1 = this.add.circle(-28, lanDy, 6, 0xf59e0b, 1);
+    lan1.setStrokeStyle(1, 0x1c1917, 0.6);
+    const lan1Glow = this.add.circle(-28, lanDy, 11, 0xf59e0b, 0.18);
+    const lan2 = this.add.circle(28, lanDy, 6, 0xf59e0b, 1);
+    lan2.setStrokeStyle(1, 0x1c1917, 0.6);
+    const lan2Glow = this.add.circle(28, lanDy, 11, 0xf59e0b, 0.18);
+    this.tweens.add({ targets: [lan1, lan2], scale: 1.08, duration: 900, yoyo: true, repeat: -1 });
+    c.add([lan1Glow, lan2Glow, lan1, lan2]);
 
-    // Lanterns
-    const lan1 = this.add.circle(-62, 42, 7, 0xffcb05, 1);
-    lan1.setStrokeStyle(2, 0x000000, 1);
-    const lan2 = this.add.circle(62, 42, 7, 0xffcb05, 1);
-    lan2.setStrokeStyle(2, 0x000000, 1);
-    this.tweens.add({ targets: [lan1, lan2], scale: 1.1, duration: 800, yoyo: true, repeat: -1 });
-    c.add([lan1, lan2]);
-
-    // Floating "!" indicator above roof
-    const exBg = this.add.rectangle(0, -86, 18, 18, 0xfff8c0, 1);
-    exBg.setStrokeStyle(2, 0x000000, 1);
-    const ex = this.add.text(0, -86, "AI", {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: "6px",
-      color: "#c00",
+    // Floating indicator above building roof
+    const exDy = -46;
+    const exBg = this.add.rectangle(0, exDy, 42, 16, 0x1c1917, 1);
+    exBg.setStrokeStyle(1, 0xf59e0b, 0.8);
+    const ex = this.add.text(0, exDy, "⛩ DOJO", {
+      fontFamily: "'Inter', sans-serif",
+      fontSize: "7px",
+      color: "#fde68a",
+      fontStyle: "700",
     });
     ex.setOrigin(0.5);
-    this.tweens.add({ targets: ex, y: -88, duration: 650, yoyo: true, repeat: -1 });
-    this.tweens.add({ targets: exBg, y: -88, duration: 650, yoyo: true, repeat: -1 });
+    ex.setLetterSpacing(0.6);
+    this.tweens.add({ targets: ex, y: exDy - 2, duration: 700, yoyo: true, repeat: -1 });
+    this.tweens.add({ targets: exBg, y: exDy - 2, duration: 700, yoyo: true, repeat: -1 });
     c.add([exBg, ex]);
 
-    // Interactive door hitbox
-    const hit = this.add.rectangle(0, 58, 64, 54, 0x000000, 0);
+    // Invisible hitbox covering door + sign
+    const hit = this.add.rectangle(0, doorDy, 52, 44, 0x000000, 0);
     hit.setInteractive({ useHandCursor: true });
     hit.on("pointerdown", () => this.callbacks?.onEnterFeynmanTower?.());
     c.add(hit);
 
     this.towerContainer = c;
-
-    // Keep tower on top of ground but below NPC labels: depth set above.
-
-    // Ensure houseRects does not include tower area for fallback collisions already handled
-    // But for Tiled maps we need manual block for tower tiles (no tileset collides there)
   }
 
   private createFallbackWorld() {
-    // Generated fallback - FireRed palette, 32px tiles
     const cols = Math.ceil(1600 / 32);
     const rows = Math.ceil(1200 / 32);
     const g = this.add.graphics();
-    g.fillStyle(0xa8d080, 1);
+    g.fillStyle(0xa7c080, 1);
     g.fillRect(0, 0, 32, 32);
+    // add subtle noise for HD
+    g.fillStyle(0xb5d0a5, 0.4);
+    g.fillRect(4, 4, 2, 2);
+    g.fillRect(18, 22, 2, 2);
     g.generateTexture("fallback-grass", 32, 32);
     g.clear();
-    g.fillStyle(0xe8d8a8, 1);
+    g.fillStyle(0xf5efe6, 1);
     g.fillRect(0, 0, 32, 32);
+    g.fillStyle(0xe9ddd0, 1);
+    g.fillRect(0, 30, 32, 2);
     g.generateTexture("fallback-path", 32, 32);
     g.destroy();
     this.mapWidth = 1600;
@@ -309,7 +336,6 @@ export class OverworldScene extends Phaser.Scene {
         this.add.image(x * 32 + 16, y * 32 + 16, key).setDepth(0);
       }
     }
-    // Houses - FireRed style, also set rects for collision
     this.houseRects = [
       { x: 180, y: 160, w: 84, h: 64 },
       { x: 1120, y: 180, w: 84, h: 64 },
@@ -318,21 +344,23 @@ export class OverworldScene extends Phaser.Scene {
     ];
     this.treeRects = [];
     for (const h of this.houseRects) {
-      const bg = this.add.rectangle(h.x, h.y, 72, 56, 0xf8f8f8, 1);
-      bg.setStrokeStyle(4, 0x000000, 1);
+      const bg = this.add.rectangle(h.x, h.y, 72, 56, 0xfdfbf7, 1);
+      bg.setStrokeStyle(2, 0x1c1917, 0.12);
       bg.setDepth(h.y);
-      const roof = this.add.rectangle(h.x, h.y - 22, 78, 18, 0xc03028, 1);
-      roof.setStrokeStyle(3, 0x000000, 1);
+      const roof = this.add.rectangle(h.x, h.y - 22, 78, 18, 0x991b1b, 1);
+      roof.setStrokeStyle(1, 0x1c1917, 0.2);
       roof.setDepth(h.y + 1);
     }
-    // Trees fallback
     for (let i = 0; i < 30; i++) {
       const tx = 80 + Math.random() * (this.mapWidth - 160);
       const ty = 80 + Math.random() * (this.mapHeight - 160);
       if (this.houseRects.some((h) => Math.hypot(tx - h.x, ty - h.y) < 80)) continue;
-      const t = this.add.ellipse(tx, ty, 28, 28, 0x2a5a2a, 1);
-      t.setStrokeStyle(2, 0x000000, 1);
+      const t = this.add.ellipse(tx, ty, 28, 28, 0x14532d, 1);
+      t.setStrokeStyle(1, 0x1c1917, 0.12);
       t.setDepth(ty + 10);
+      // HD shadow
+      const sh = this.add.ellipse(tx, ty + 14, 18, 8, 0x1c1917, 0.14);
+      sh.setDepth(ty + 9);
       this.treeRects.push({ x: tx, y: ty, w: 28, h: 28 });
     }
     this.worldLayer = null as any;
@@ -340,17 +368,26 @@ export class OverworldScene extends Phaser.Scene {
   }
 
   private createAnimations() {
-    // From PokeMMO Scene1.createAnimations - misa_* and onlinePlayer_*
-    const anims = [
-      { key: "misa-left-walk", atlas: "currentPlayer", prefix: "misa-left-walk.", start: 0, end: 3 },
-      { key: "misa-right-walk", atlas: "currentPlayer", prefix: "misa-right-walk.", start: 0, end: 3 },
-      { key: "misa-front-walk", atlas: "currentPlayer", prefix: "misa-front-walk.", start: 0, end: 3 },
-      { key: "misa-back-walk", atlas: "currentPlayer", prefix: "misa-back-walk.", start: 0, end: 3 },
-      { key: "onlinePlayer-left-walk", atlas: "players", prefix: "bob_left_walk.", start: 0, end: 3, suffix: ".png" },
-      { key: "onlinePlayer-right-walk", atlas: "players", prefix: "bob_right_walk.", start: 0, end: 3, suffix: ".png" },
-      { key: "onlinePlayer-front-walk", atlas: "players", prefix: "bob_front_walk.", start: 0, end: 3, suffix: ".png" },
-      { key: "onlinePlayer-back-walk", atlas: "players", prefix: "bob_back_walk.", start: 0, end: 3, suffix: ".png" },
-    ];
+    // HD: create walk anims for all 14 distinct characters + misa
+    const bases = ["misa", "bob", "boss", "femaletrainer", "girl1", "knight", "ninja", "nurse", "professor", "red", "teamxerogrunt1", "tuxemartemployee", "omnichannelceo", "omnichannelfemale"];
+    const dirs: Record<string, string> = { left: "left", right: "right", front: "front", back: "back" };
+    // For currentPlayer atlas (misa) we keep misa_*, for players HD we use each base
+    const anims: any[] = [];
+    // misa from currentPlayer/currentPlayerHD
+    for (const d of Object.keys(dirs)) {
+      const keyMap: any = { left: "misa-left-walk", right: "misa-right-walk", front: "misa-front-walk", back: "misa-back-walk" };
+      anims.push({ key: keyMap[d], atlas: this.textures.exists("currentPlayerHD") ? "currentPlayerHD" : "currentPlayer", prefix: `misa-${d}-walk.`, start: 0, end: 3 });
+    }
+    // For each base in playersHD atlas, create walk anims with suffix .png
+    for (const base of bases) {
+      for (const d of ["left", "right", "front", "back"] as const) {
+        const dirMap: any = { left: "left", right: "right", front: "front", back: "back" };
+        // atlas uses {base}_{dir}_walk.000.png
+        const prefix = `${base}_${dirMap[d]}_walk.`;
+        const key = `${base}-${d}-walk`;
+        anims.push({ key, atlas: this.textures.exists("playersHD") ? "playersHD" : "players", prefix, start: 0, end: 3, suffix: ".png" });
+      }
+    }
     for (const a of anims as any) {
       if (this.anims.exists(a.key)) continue;
       try {
@@ -364,12 +401,23 @@ export class OverworldScene extends Phaser.Scene {
         });
       } catch {}
     }
-    // Idle frames
+    // Idle frames for all bases
+    for (const base of bases) {
+      for (const d of ["front", "back", "left", "right"] as const) {
+        const idleKey = `${base}-${d}-idle`;
+        if (this.anims.exists(idleKey)) continue;
+        const atlas = this.textures.exists("playersHD") ? "playersHD" : "players";
+        const frame = `${base}_${d}.png`;
+        try { this.anims.create({ key: idleKey, frames: [{ key: atlas, frame }], frameRate: 1 }); } catch {}
+      }
+    }
+    // also misa idle
     for (const dir of ["front", "back", "left", "right"]) {
       const k = `misa-${dir}-idle`;
       if (!this.anims.exists(k)) {
         const frameMap: any = { front: "misa-front", back: "misa-back", left: "misa-left", right: "misa-right" };
-        try { this.anims.create({ key: k, frames: [{ key: "currentPlayer", frame: frameMap[dir] }], frameRate: 1 }); } catch {}
+        const atlas = this.textures.exists("currentPlayerHD") ? "currentPlayerHD" : "currentPlayer";
+        try { this.anims.create({ key: k, frames: [{ key: atlas, frame: frameMap[dir] }], frameRate: 1 }); } catch {}
       }
     }
   }
@@ -388,10 +436,21 @@ export class OverworldScene extends Phaser.Scene {
     kb.on("keydown-E", () => this.tryInteract());
     kb.on("keydown-SPACE", () => this.tryInteract());
     kb.on("keydown-ENTER", () => this.tryInteract());
-    // Click to move - grid step like FireRed, tower door clicks open Dojo
+    // Window fallback: ensure Enter/Space work even when Phaser canvas not focused (browser focus issues)
+    const winHandler = (e: KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " " || e.key === "e" || e.key === "E") {
+        // avoid firing when typing in input/textarea
+        const tag = (document.activeElement?.tagName || "").toLowerCase();
+        if (tag === "input" || tag === "textarea" || tag === "select") return;
+        // slight throttle - let Phaser handle if already handled
+        this.tryInteract();
+      }
+    };
+    window.addEventListener("keydown", winHandler);
+    this.events.once("shutdown", () => window.removeEventListener("keydown", winHandler));
+    this.events.once("destroy", () => window.removeEventListener("keydown", winHandler));
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       const wp = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-      // If clicked on tower door/area, enter dojo directly
       if (Phaser.Math.Distance.Between(wp.x, wp.y, this.feynmanDoor.x, this.feynmanDoor.y) < 52) {
         this.callbacks?.onEnterFeynmanTower?.();
         return;
@@ -409,7 +468,8 @@ export class OverworldScene extends Phaser.Scene {
 
   private setupCamera() {
     this.cameras.main.setBounds(0, 0, this.mapWidth, this.mapHeight);
-    this.cameras.main.setZoom(0.68);
+    // HD 1080p: 1280x720 (+ zoom 1.35) = crisp 2.6x pixels vs 480x270, keeps intimate 28x16 view
+    this.cameras.main.setZoom(1.35);
     this.cameras.main.setRoundPixels(true);
   }
 
@@ -425,13 +485,8 @@ export class OverworldScene extends Phaser.Scene {
         if (p.isMe) {
           this.myContainer = cont;
           this.mySprite = (cont as any)._sprite as Phaser.GameObjects.Sprite;
-          this.cameras.main.startFollow(cont, true, 0.12, 0.12);
-          // enable physics collider for my player if worldLayer exists
-          if (this.worldLayer && this.mySprite) {
-            // Use container for follow, but sprite for physics - we keep container as visual, add invisible physics body via container
-            // For simplicity, keep container as is, add arcade body to container via physics
-            try { this.physics.add.existing(cont as any); (cont as any).body.setSize(16, 16); (cont as any).body.setOffset(-8, -4); } catch {}
-          }
+          this.cameras.main.startFollow(cont, true, 0.14, 0.14);
+          try { this.physics.add.existing(cont as any); (cont as any).body.setSize(16, 16); (cont as any).body.setOffset(-8, -4); } catch {}
         }
       } else {
         this.updatePlayerContainer(cont, p);
@@ -443,11 +498,11 @@ export class OverworldScene extends Phaser.Scene {
           cont.setPosition(p.x, p.y);
         } else if (dist > 1) {
           this.tweens.killTweensOf(cont);
-          // play walk for remote
           const dir = p.direction;
           const sprite = (cont as any)._sprite as Phaser.GameObjects.Sprite | undefined;
           if (sprite) {
-            const key = `onlinePlayer-${dir === "up" ? "back" : dir === "down" ? "front" : dir}-walk`;
+            // use bob as fallback for others, but try distinct if color maps to base
+            const key = `bob-${dir === "up" ? "back" : dir === "down" ? "front" : dir}-walk`;
             if (this.anims.exists(key)) sprite.play(key, true);
           }
           this.tweens.add({
@@ -462,11 +517,11 @@ export class OverworldScene extends Phaser.Scene {
           if (sprite) sprite.anims.stop();
         }
       } else {
-        // local authoritative, only dir - set idle frame
         const sprite = (cont as any)._sprite as Phaser.GameObjects.Sprite | undefined;
         if (sprite) {
           const idleMap: any = { up: "misa-back", down: "misa-front", left: "misa-left", right: "misa-right" };
-          try { sprite.setTexture("currentPlayer", idleMap[p.direction] ?? "misa-front"); } catch {}
+          const atlas = this.textures.exists("currentPlayerHD") ? "currentPlayerHD" : "currentPlayer";
+          try { sprite.setTexture(atlas, idleMap[p.direction] ?? "misa-front"); } catch {}
         }
       }
       cont.setDepth(cont.y + 30);
@@ -500,96 +555,128 @@ export class OverworldScene extends Phaser.Scene {
 
   private createPlayerContainer(p: PlayerSprite): Phaser.GameObjects.Container {
     const c = this.add.container(p.x, p.y);
-    const shadow = this.add.ellipse(0, 12, 14, 6, 0x000000, 0.22);
-    // Use PokeMMO atlas - misa_* for me, bob_* for others (but we use misa for all with tint fallback)
+    const shadow = this.add.ellipse(0, 13, 18, 8, 0x1c1917, 0.18);
+    const shadow2 = this.add.ellipse(0, 13, 10, 5, 0x1c1917, 0.12);
     let sprite: Phaser.GameObjects.Sprite;
     const isMe = p.isMe;
-    const atlas = isMe ? "currentPlayer" : "players";
-    const frameMap: any = {
-      down: isMe ? "misa-front" : "bob_front_walk.000.png",
-      up: isMe ? "misa-back" : "bob_back_walk.000.png",
-      left: isMe ? "misa-left" : "bob_left_walk.000.png",
-      right: isMe ? "misa-right" : "bob_right_walk.000.png",
-    };
+    const atlas = isMe ? (this.textures.exists("currentPlayerHD") ? "currentPlayerHD" : "currentPlayer") : (this.textures.exists("playersHD") ? "playersHD" : "players");
+    const frameMap: any = isMe ? { down: "misa-front", up: "misa-back", left: "misa-left", right: "misa-right" } : { down: "bob_front.png", up: "bob_back.png", left: "bob_left.png", right: "bob_right.png" };
     const frame = frameMap[p.direction] ?? frameMap.down;
+    const isHD = atlas.includes("HD");
     try {
-      sprite = this.add.sprite(0, -8, atlas, frame);
-      sprite.setScale(1);
+      sprite = this.add.sprite(0, -10, atlas, frame);
+      sprite.setScale(isHD ? (isMe ? 0.72 : 0.70) : (isMe ? 1.35 : 1.30));
     } catch {
-      sprite = this.add.sprite(0, -8, "currentPlayer", "misa-front");
+      sprite = this.add.sprite(0, -10, "currentPlayer", "misa-front");
+      sprite.setScale(1.1);
     }
     (c as any)._sprite = sprite;
-    // Color tint for other players
     if (!isMe) {
       try { sprite.setTint(Phaser.Display.Color.HexStringToColor(p.color).color); } catch {}
     }
-    const nameW = Math.max(48, p.name.length * 6 + 14);
-    const plate = this.add.rectangle(0, -28, nameW, 12, isMe ? 0xffcb05 : 0x000000, isMe ? 1 : 0.85);
-    plate.setStrokeStyle(2, isMe ? 0x000000 : 0xffffff, 1);
-    const label = this.add.text(0, -28, (isMe ? "▶ " : "") + p.name, {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: "6px",
-      color: isMe ? "#000" : "#fff",
+    // HD nameplate - Inter, rounded, subtle shadow
+    const nameW = Math.max(62, p.name.length * 7 + 18);
+    const plateShadow = this.add.rectangle(0, -34.5, nameW, 16, 0x1c1917, 0.14);
+    const plate = this.add.rectangle(0, -36, nameW, 16, isMe ? 0xf59e0b : 0x1c1917, 1);
+    plate.setStrokeStyle(1, isMe ? 0x1c1917 : 0xe9ddd0, 0.7);
+    const label = this.add.text(0, -36, (isMe ? "◆ " : "") + p.name, {
+      fontFamily: "'Inter', system-ui, sans-serif",
+      fontSize: "10px",
+      color: isMe ? "#1c1917" : "#fdfbf7",
+      fontStyle: isMe ? "700" : "600",
     });
     label.setOrigin(0.5);
+    label.setLetterSpacing(0.3);
     (c as any)._label = label;
-    c.add([shadow, sprite, plate, label]);
+    (c as any)._plate = plate;
+    (c as any)._plateShadow = plateShadow;
+    c.add([shadow2, shadow, sprite, plateShadow, plate, label]);
     return c;
   }
 
   private updatePlayerContainer(cont: Phaser.GameObjects.Container, p: PlayerSprite) {
     const label = (cont as any)._label as Phaser.GameObjects.Text | undefined;
-    if (label) label.setText(((p.isMe ? "▶ " : "") + p.name));
+    if (label) label.setText(((p.isMe ? "◆ " : "") + p.name));
     const sprite = (cont as any)._sprite as Phaser.GameObjects.Sprite | undefined;
     if (sprite) {
       const isMe = p.isMe;
-      const frameMap: any = isMe ? { down: "misa-front", up: "misa-back", left: "misa-left", right: "misa-right" } : { down: "bob_front_walk.000.png", up: "bob_back_walk.000.png", left: "bob_left_walk.000.png", right: "bob_right_walk.000.png" };
+      const atlas = isMe ? (this.textures.exists("currentPlayerHD") ? "currentPlayerHD" : "currentPlayer") : (this.textures.exists("playersHD") ? "playersHD" : "players");
+      const frameMap: any = isMe ? { down: "misa-front", up: "misa-back", left: "misa-left", right: "misa-right" } : { down: "bob_front.png", up: "bob_back.png", left: "bob_left.png", right: "bob_right.png" };
       const f = frameMap[p.direction] ?? frameMap.down;
-      try { sprite.setTexture(isMe ? "currentPlayer" : "players", f); } catch {}
+      try { sprite.setTexture(atlas, f); } catch {}
     }
   }
 
   private createNpcContainer(n: NpcSprite): Phaser.GameObjects.Container {
     const c = this.add.container(n.x, n.y);
-    const mat = this.add.ellipse(0, 16, 26, 10, 0xffcb05, 0.28);
-    mat.setStrokeStyle(1, 0xf59e0b, 0.6);
-    this.tweens.add({ targets: mat, scaleX: 1.12, scaleY: 1.12, duration: 900, yoyo: true, repeat: -1 });
-    const shadow = this.add.ellipse(0, 12, 16, 6, 0x000000, 0.18);
+    // HD ground mat - warm
+    const mat = this.add.ellipse(0, 16, 32, 12, 0xf59e0b, 0.22);
+    mat.setStrokeStyle(1, 0xf59e0b, 0.22);
+    this.tweens.add({ targets: mat, scaleX: 1.08, scaleY: 1.08, duration: 1000, yoyo: true, repeat: -1 });
+    const mat2 = this.add.ellipse(0, 16, 18, 7, 0xf59e0b, 0.14);
+    const shadow = this.add.ellipse(0, 12, 18, 8, 0x1c1917, 0.16);
+    const shadow2 = this.add.ellipse(0, 12, 10, 5, 0x1c1917, 0.10);
+
+    // Distinct HD sprite per NPC
+    const base = getNpcSpriteBase(n.name, this.npcGroup.size);
+    const atlas = this.textures.exists("playersHD") ? "playersHD" : "players";
     let sprite: Phaser.GameObjects.Sprite;
-    // Use characters.png as NPC - fallback to atlas
-    if (this.textures.exists("npcs")) {
-      sprite = this.add.sprite(0, -6, "npcs", 0);
-      sprite.setScale(1);
-      sprite.setTint(Phaser.Display.Color.HexStringToColor(n.color).color);
-    } else {
-      sprite = this.add.sprite(0, -6, "currentPlayer", "misa-front");
-      sprite.setTint(Phaser.Display.Color.HexStringToColor(n.color).color);
+    const frame = `${base}_front.png`;
+    const isNpcHD = atlas.includes("HD");
+    try {
+      sprite = this.add.sprite(0, -10, atlas, frame);
+      sprite.setScale(isNpcHD ? 0.92 : 1.75);
+    } catch {
+      sprite = this.add.sprite(0, -10, "currentPlayer", "misa-front");
+      sprite.setScale(0.58);
+      try { sprite.setTint(Phaser.Display.Color.HexStringToColor(n.color).color); } catch {}
     }
-    const nw = Math.max(56, n.name.length * 5.5 + 14);
-    const plate = this.add.rectangle(0, -28, nw, 12, 0x000000, 0.88);
-    plate.setStrokeStyle(2, 0xffcb05, 1);
-    const label = this.add.text(0, -28, n.name, {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: "5px",
-      color: "#fff",
+    // subtle outline for HD crisp
+    sprite.setOrigin(0.5, 0.85);
+
+    // HD nameplate - white with Inter, distinct per role
+    const nw = Math.max(70, n.name.length * 6.5 + 20);
+    const plateShadow = this.add.rectangle(0, -36.5, nw, 16, 0x1c1917, 0.10);
+    const plate = this.add.rectangle(0, -38, nw, 16, 0xffffff, 0.96);
+    plate.setStrokeStyle(1, 0xe9ddd0, 0.9);
+    const label = this.add.text(0, -38, n.name, {
+      fontFamily: "'Inter', system-ui, sans-serif",
+      fontSize: "9.5px",
+      color: "#1c1917",
+      fontStyle: "600",
     });
     label.setOrigin(0.5);
-    const exBg = this.add.rectangle(12, -18, 12, 12, 0xfff8c0, 1);
-    exBg.setStrokeStyle(2, 0x000000, 1);
-    const ex = this.add.text(12, -18, "!", {
-      fontFamily: '"Press Start 2P", monospace',
+    label.setLetterSpacing(0.2);
+    // role badge
+    const roleText = this.add.text(0, -24, n.introLine ? n.introLine.slice(0, 18) + "…" : "", {
+      fontFamily: "'Inter', sans-serif",
       fontSize: "7px",
-      color: "#c00",
+      color: "#78716c",
+    });
+    roleText.setOrigin(0.5);
+    roleText.setAlpha(0);
+
+    const exBg = this.add.rectangle(14, -20, 14, 14, 0x1c1917, 1);
+    exBg.setStrokeStyle(1, 0xf59e0b, 0.8);
+    const ex = this.add.text(14, -20, "!", {
+      fontFamily: "'Inter', sans-serif",
+      fontSize: "9px",
+      color: "#fde68a",
+      fontStyle: "700",
     });
     ex.setOrigin(0.5);
-    this.tweens.add({ targets: ex, y: -17, duration: 600, yoyo: true, repeat: -1 });
-    c.add([mat, shadow, sprite, plate, label, exBg, ex]);
+    this.tweens.add({ targets: ex, y: -22, duration: 650, yoyo: true, repeat: -1 });
+    this.tweens.add({ targets: exBg, y: -22, duration: 650, yoyo: true, repeat: -1 });
+
+    c.add([mat, mat2, shadow2, shadow, sprite, plateShadow, plate, label, exBg, ex]);
     c.setDepth(n.y + 25);
-    const hit = this.add.rectangle(0, 0, 32, 32, 0x000000, 0);
+    const hit = this.add.rectangle(0, 0, 36, 36, 0x000000, 0);
     hit.setInteractive({ useHandCursor: true });
     c.add(hit);
     hit.on("pointerdown", () => this.callbacks?.onInteractNpc(n.id));
-    c.setScale(1);
+    // @ts-ignore store base for later direction updates
+    (c as any)._base = base;
+    (c as any)._sprite = sprite;
     return c;
   }
 
@@ -600,23 +687,27 @@ export class OverworldScene extends Phaser.Scene {
     const old = this.chatBubbles.get(playerId);
     if (old) old.destroy();
     this.chatTimers.get(playerId)?.remove();
-    const bubble = this.add.text(cont.x, cont.y - 34, text.slice(0, 70), {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: "6px",
-      color: "#000",
-      backgroundColor: "#fff",
-      padding: { x: 6, y: 4 },
-      wordWrap: { width: 120 },
+    // HD bubble - Inter, rounded, warm white, larger for 1080p
+    const bubble = this.add.text(cont.x, cont.y - 52, text.slice(0, 90), {
+      fontFamily: "'Inter', system-ui, sans-serif",
+      fontSize: "11px",
+      color: "#1c1917",
+      backgroundColor: "#ffffff",
+      padding: { x: 10, y: 7 },
+      wordWrap: { width: 160 },
+      lineSpacing: 3,
     });
     bubble.setOrigin(0.5, 1);
     bubble.setDepth(300);
-    bubble.setStroke("#000", 2);
+    // HD outline via shadow
+    bubble.setShadow(0, 1, "rgba(28,25,23,0.12)", 4, false, true);
+    // add stroke emulation via graphics? keep simple
     this.chatBubbles.set(playerId, bubble);
-    this.tweens.add({ targets: bubble, y: cont.y - 40, duration: 200 });
-    const timer = this.time.delayedCall(3600, () => {
+    this.tweens.add({ targets: bubble, y: cont.y - 56, duration: 220, ease: "Quad.easeOut" });
+    const timer = this.time.delayedCall(3800, () => {
       if (!bubble.scene) return;
       this.tweens.add({
-        targets: bubble, alpha: 0, y: bubble.y - 8, duration: 240,
+        targets: bubble, alpha: 0, y: bubble.y - 10, duration: 260,
         onComplete: () => { bubble.destroy(); this.chatBubbles.delete(playerId); this.chatTimers.delete(playerId); },
       });
     });
@@ -628,7 +719,7 @@ export class OverworldScene extends Phaser.Scene {
     this.updateNearby();
     for (const [pid, b] of this.chatBubbles.entries()) {
       const cont = this.playerGroup.get(pid);
-      if (cont) b.setPosition(cont.x, cont.y - 40);
+      if (cont) b.setPosition(cont.x, cont.y - 56);
     }
     if (this.moving) return;
     const c = this.cursors;
@@ -654,7 +745,6 @@ export class OverworldScene extends Phaser.Scene {
     if (dir === "down") ny += step;
     nx = Phaser.Math.Clamp(nx, 16, this.mapWidth - 16);
     ny = Phaser.Math.Clamp(ny, 16, this.mapHeight - 16);
-    // Collision: Tiled worldLayer + houses/trees/NPCs
     if (this.worldLayer) {
       try {
         const tile = this.worldLayer.getTileAtWorldXY(nx, ny, true) as any;
@@ -663,7 +753,6 @@ export class OverworldScene extends Phaser.Scene {
         if (feet && feet.properties && (feet.properties as any).collides) return;
       } catch {}
     }
-    // Houses manual (fallback + Tiled extra)
     for (const h of this.houseRects) {
       if (nx > h.x - h.w / 2 - 8 && nx < h.x + h.w / 2 + 8 && ny > h.y - h.h / 2 - 8 && ny < h.y + h.h / 2 + 8) return;
     }
@@ -671,41 +760,32 @@ export class OverworldScene extends Phaser.Scene {
       if (nx > t.x - t.w / 2 - 6 && nx < t.x + t.w / 2 + 6 && ny > t.y - t.h / 2 - 6 && ny < t.y + t.h / 2 + 6) return;
     }
     for (const n of this.npcsData) {
-      if (Math.abs(nx - n.x) < 20 && Math.abs(ny - n.y) < 20) return;
+      if (Math.abs(nx - n.x) < 28 && Math.abs(ny - n.y) < 28) return;
     }
-    // Feynman Tower collision — block whole rect except the door gap at bottom center
-    {
-      const t = this.feynmanTower;
-      const d = this.feynmanDoor;
-      const inTower =
-        nx > t.x - t.w / 2 - 8 &&
-        nx < t.x + t.w / 2 + 8 &&
-        ny > t.y - t.h / 2 - 10 &&
-        ny < t.y + t.h / 2 + 10;
-      if (inTower) {
-        const inDoor = nx > d.x - d.w / 2 - 4 && nx < d.x + d.w / 2 + 4 && ny > d.y - 6 && ny < d.y + 16;
-        if (!inDoor) return;
-      }
-    }
+    // Building at 560,528 is existing tilemap building with collides on walls via World layer.
+    // No manual block needed - tilemap handles walls. Door tile at 560,582 is walkable (World tile 0).
+    // Keep door area always walkable even if tile says collides (future-proof)
+    // if (this.worldLayer) {} already checked above
+    
     this.moving = true;
     const animKey = dir === "up" ? "misa-back-walk" : dir === "down" ? "misa-front-walk" : dir === "left" ? "misa-left-walk" : "misa-right-walk";
     try {
       if (this.anims.exists(animKey) && this.mySprite) this.mySprite.play(animKey, true);
     } catch (e) { console.warn("anim play failed", animKey, e); }
-    // safety: reset moving after 400ms if tween fails
     this.time.delayedCall(500, () => { if (this.moving) this.moving = false; });
     this.tweens.add({
       targets: this.myContainer,
       x: nx,
       y: ny,
-      duration: 180,
+      duration: 165,
       ease: "Linear",
       onComplete: () => {
         this.moving = false;
         if (this.mySprite) {
           try { this.mySprite.anims.stop(); } catch {}
           const idleMap: any = { up: "misa-back", down: "misa-front", left: "misa-left", right: "misa-right" };
-          try { this.mySprite.setTexture("currentPlayer", idleMap[dir]); } catch {}
+          const atlas = this.textures.exists("currentPlayerHD") ? "currentPlayerHD" : "currentPlayer";
+          try { this.mySprite.setTexture(atlas, idleMap[dir]); } catch {}
         }
         this.myContainer?.setDepth((this.myContainer?.y ?? 0) + 30);
         try { this.callbacks?.onMove(nx, ny, dir); } catch {}
@@ -716,12 +796,11 @@ export class OverworldScene extends Phaser.Scene {
 
   private updateNearby() {
     if (!this.myContainer || !this.interactText || !this.interactBg) return;
-    // Tower proximity check (before NPCs, larger radius)
     const towerDist = Phaser.Math.Distance.Between(this.myContainer.x, this.myContainer.y, this.feynmanDoor.x, this.feynmanDoor.y);
-    const nearTower = towerDist < 64;
+    const nearTower = towerDist < 72;
 
     let closest: string | null = null;
-    let best = 48;
+    let best = 64;
     for (const n of this.npcsData) {
       const d = Phaser.Math.Distance.Between(this.myContainer.x, this.myContainer.y, n.x, n.y);
       if (d < best) { best = d; closest = n.id; }
@@ -730,26 +809,26 @@ export class OverworldScene extends Phaser.Scene {
     this.towerNearby = nearTower;
 
     if (nearTower) {
-      this.interactBg.setPosition(this.feynmanDoor.x, this.feynmanDoor.y - 22);
-      this.interactText.setPosition(this.feynmanDoor.x, this.feynmanDoor.y - 22);
-      this.interactBg.setSize(142, 16);
-      this.interactText.setText("ENTER: FEYNMAN DOJO");
+      this.interactBg.setPosition(this.feynmanDoor.x, this.feynmanDoor.y - 26);
+      this.interactText.setPosition(this.feynmanDoor.x, this.feynmanDoor.y - 26);
+      this.interactBg.setSize(160, 22);
+      this.interactText.setText("ENTER  •  FEYNMAN DOJO");
       this.interactBg.setVisible(true);
       this.interactText.setVisible(true);
-      this.interactText.setFontSize("5.5px");
+      this.interactText.setFontSize("11px");
       return;
     }
 
     if (closest) {
       const cont = this.npcGroup.get(closest);
       if (cont) {
-        this.interactBg.setSize(110, 16);
-        this.interactBg.setPosition(cont.x, cont.y - 30);
-        this.interactText.setPosition(cont.x, cont.y - 30);
-        this.interactText.setText("ENTER: TALK");
+        this.interactBg.setSize(130, 22);
+        this.interactBg.setPosition(cont.x, cont.y - 42);
+        this.interactText.setPosition(cont.x, cont.y - 42);
+        this.interactText.setText("ENTER  •  TALK");
         this.interactBg.setVisible(true);
         this.interactText.setVisible(true);
-        this.interactText.setFontSize("6px");
+        this.interactText.setFontSize("11px");
       }
     } else {
       this.interactBg.setVisible(false);
@@ -765,7 +844,6 @@ export class OverworldScene extends Phaser.Scene {
     if (this.nearbyNpcId) this.callbacks?.onInteractNpc(this.nearbyNpcId);
   }
 
-  // For click-to-enter tower
   public isNearFeynmanTower(x: number, y: number): boolean {
     return Phaser.Math.Distance.Between(x, y, this.feynmanDoor.x, this.feynmanDoor.y) < 64;
   }

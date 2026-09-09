@@ -71,22 +71,32 @@ export default function PhaserGame({
 
     const config: Phaser.Types.Core.GameConfig = {
       type: Phaser.AUTO,
-      width: 480,
-      height: 270,
+      width: 1280,
+      height: 720,
       parent: containerRef.current,
-      backgroundColor: "#78c850",
+      backgroundColor: "#a7d0a0",
       physics: {
         default: "arcade",
         arcade: { gravity: { x: 0, y: 0 }, debug: false },
       },
       scene: [OverworldScene],
+      // HD: keep crisp pixel but render at 1080p canvas, allow smooth scaling
       pixelArt: true,
-      antialias: false,
+      antialias: true,
+      antialiasGL: true,
       roundPixels: true,
       scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH,
       },
+      render: {
+        antialias: true,
+        pixelArt: true,
+        roundPixels: true,
+        transparent: false,
+      } as any,
+      fps: { target: 60, min: 30 },
+      banner: false,
     };
 
     const game = new Phaser.Game(config);
@@ -285,15 +295,16 @@ export default function PhaserGame({
     <div
       ref={containerRef}
       tabIndex={0}
-      className="phaser-wrap"
+      className="phaser-wrap phaser-wrap--hd"
       style={{
         width: "100%",
         height: "100%",
         aspectRatio: "16 / 9",
         overflow: "hidden",
-        background: "#78c850",
+        background: "#a7d0a0",
         outline: "none",
         imageRendering: "pixelated" as any,
+        borderRadius: "16px",
       }}
     />
   );

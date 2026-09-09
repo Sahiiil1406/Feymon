@@ -29,25 +29,39 @@ function AccountGate({ onCreated }: { onCreated: (id: string, name: string) => v
   };
   return (
     <div className="fr-gate">
-      <div className="fr-gate-card landscape">
+      <div className="fr-gate-card">
         <div className="fr-gate-left">
-          <div className="fr-oak-sprite">OAK</div>
+          <div className="fr-gate-brand">
+            <span className="fr-gate-logo">◉</span>
+            <span className="fr-gate-brand-text">Feymon</span>
+            <span className="fr-gate-badge">Beta</span>
+          </div>
+          <h1 className="fr-gate-h1">Welcome to Feymon</h1>
+          <p className="fr-gate-sub">A calm, collaborative world to explore, learn and practice. Inspired by minimal design — focused on clarity and flow.</p>
           <div className="fr-oak-box">
-            <p>Hello there! Welcome to the world of FEYMON!</p>
-            <p>My name is OAK! People call me the FEYMON PROF!</p>
-            <p>This world is inhabited by creatures called FEYMON!</p>
+            <div className="fr-oak-head">
+              <span className="fr-oak-avatar">◐</span>
+              <span>Professor Oak</span>
+              <span className="fr-oak-tag">Guide</span>
+            </div>
+            <p>“This world is inhabited by creatures called Feymon. Choose your name and color to begin your journey.”</p>
+          </div>
+          <div className="fr-gate-meta">
+            <span>16×16 tiles • Grid movement • Realtime</span>
+            <span>Works in browser • No download</span>
           </div>
         </div>
         <div className="fr-gate-right">
-          <div className="fr-form-title">NEW TRAINER</div>
+          <div className="fr-form-title">Create trainer</div>
+          <p className="fr-form-sub">Pick a display name and accent color. You can change it later.</p>
           <form onSubmit={submit} className="fr-form">
-            <label className="fr-field"><span>NAME</span><input value={name} onChange={(e) => setName(e.target.value)} placeholder="ASH" maxLength={7} autoFocus /></label>
-            <div className="fr-field"><span>COLOR</span>
-              <div className="fr-colors">{COLORS.map((c) => (<button key={c} type="button" onClick={() => setColor(c)} className={`fr-dot ${color === c ? "on" : ""}`} style={{ background: c }} />))}</div>
+            <label className="fr-field"><span>Name</span><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ash" maxLength={12} autoFocus /></label>
+            <div className="fr-field"><span>Accent</span>
+              <div className="fr-colors">{COLORS.map((c) => (<button key={c} type="button" onClick={() => setColor(c)} className={`fr-dot ${color === c ? "on" : ""}`} style={{ background: c }} aria-label={c} />))}</div>
             </div>
-            <button type="submit" disabled={loading} className="fr-btn">{loading ? "► ..." : "► OK"}</button>
+            <button type="submit" disabled={loading} className="fr-btn">{loading ? "Creating…" : "Continue →"}</button>
             {err && <div className="fr-err">{err}</div>}
-            <p className="fr-hint">FIRE RED • 16x16 TILES • GRID MOVEMENT</p>
+            <p className="fr-hint">By continuing you agree to be a kind explorer. Be respectful in the village.</p>
           </form>
         </div>
       </div>
@@ -132,194 +146,306 @@ export default function App() {
     <>
       <style>{styles}</style>
       <div className="fr-root">
-        <div className="fr-header">
+        <header className="fr-header">
           <div className="fr-header-inner">
-            <span className="fr-ball">◉</span>
-            <span className="fr-title">FEYMON FIRE RED</span>
-            <span className="fr-loc">VILLAGE • ROUTE 1</span>
-            <span className="fr-live"><i />{online?.length ?? 0} ONLINE</span>
-            <button className={`fr-dojo-btn ${hasActiveLoop ? "active" : ""}`} onClick={() => setShowDojo(true)} title="Enter Feynman Dojo — North Gate (F)">
-              {hasActiveLoop ? "◉ DOJO ●" : "⛩ DOJO"}
-            </button>
-            <button className="fr-menu-btn" onClick={() => setShowMenu(!showMenu)}>MENU</button>
-            <button className="fr-quit" onClick={handleLogout}>QUIT</button>
+            <div className="fr-brand">
+              <span className="fr-ball">◉</span>
+              <span className="fr-title">Feymon</span>
+              <span className="fr-loc">Village • Route 1</span>
+            </div>
+            <div className="fr-header-actions">
+              <span className="fr-live"><i />{online?.length ?? 0} online</span>
+              <button className={`fr-dojo-btn ${hasActiveLoop ? "active" : ""}`} onClick={() => setShowDojo(true)}>
+                {hasActiveLoop ? "Dojo • Active" : "Dojo"}
+              </button>
+              <button className="fr-menu-btn" onClick={() => setShowMenu(!showMenu)}>Menu</button>
+              <button className="fr-quit" onClick={handleLogout}>Sign out</button>
+            </div>
           </div>
-        </div>
+        </header>
+
         <div className="fr-landscape">
           <div className="fr-game-col">
             <div className="fr-frame">
-              {isLoading ? <div className="fr-loading">LOADING...</div> : (
+              {isLoading ? <div className="fr-loading"><span className="fr-spinner" /> Loading world…</div> : (
                 <PhaserGame myPlayerId={myId} players={online as any} npcs={npcs as any} me={me as any} onMove={handleMove} onInteractNpc={handleInteract} onEnterFeynmanTower={handleEnterTower} latestChat={latestChat} />
               )}
-              <div className="fr-loc-banner">FEYMON VILLAGE — ⛩ FEYNMAN DOJO AT NORTH GATE (walk north)</div>
-              <div className="fr-ctrl">GRID MOVE: D-PAD/WASD • ENTER: TALK / ENTER DOJO • CLICK DOOR • F: DOJO • M: MENU</div>
+              <div className="fr-loc-banner">Feymon Village — Dojo inside the big central building. Find the ⛩ sign.</div>
+              <div className="fr-ctrl">Move: WASD / Arrows • Enter: Talk / Enter Dojo (big building) • Click door • F: Dojo • M: Menu</div>
               {activeNpc && (
                 <div className="fr-dialog">
-                  <div className="fr-dialog-head"><span className="fr-who">{activeNpc.name.toUpperCase()}</span><button className="fr-x" onClick={() => setActiveNpcId(null)}>×</button></div>
+                  <div className="fr-dialog-head"><span className="fr-who">{activeNpc.name}</span><button className="fr-x" onClick={() => setActiveNpcId(null)} aria-label="Close">×</button></div>
                   <div className="fr-dialog-body">“{activeNpc.introLine}”</div>
-                  <div className="fr-dialog-actions"><button className="fr-btn-sm" onClick={() => setActiveNpcId(null)}>B: BACK</button><button className="fr-btn-sm primary" onClick={() => { if(playerIdConvex) sendMsg({ authorId: playerIdConvex, body: `Hi ${activeNpc.name}!`, mapId:"overworld", channel:"nearby"});}}>A: HI</button></div>
-                  <span className="fr-arrow">▼</span>
+                  <div className="fr-dialog-actions"><button className="fr-btn-sm" onClick={() => setActiveNpcId(null)}>Dismiss</button><button className="fr-btn-sm primary" onClick={() => { if(playerIdConvex) sendMsg({ authorId: playerIdConvex, body: `Hi ${activeNpc.name}!`, mapId:"overworld", channel:"nearby"});}}>Say hi</button></div>
                 </div>
               )}
               {showMenu && (
                 <div className="fr-menu-overlay" onClick={() => setShowMenu(false)}>
                   <div className="fr-start-box" onClick={e=>e.stopPropagation()}>
-                    <div className="fr-start-title">MENU</div>
+                    <div className="fr-start-title">Menu</div>
+                    <p className="fr-start-sub">Quick overview of your session.</p>
                     <div className="fr-start-list">
-                      <div className="fr-start-item on"><span>▶</span> MAP</div>
-                      <div className="fr-start-item"><span> </span> ONLINE <em>{online?.length ?? 0}</em></div>
-                      <div className="fr-start-item"><span> </span> NPCs <em>{npcs?.length ?? 0}</em></div>
-                      <button className="fr-start-item as-btn" onClick={handleLogout}><span> </span> QUIT</button>
+                      <div className="fr-start-item on"><span>Map</span><em>Village</em></div>
+                      <div className="fr-start-item"><span>Online</span><em>{online?.length ?? 0}</em></div>
+                      <div className="fr-start-item"><span>Town people</span><em>{npcs?.length ?? 0}</em></div>
+                      <button className="fr-start-item as-btn" onClick={handleLogout}><span>Sign out</span><em>→</em></button>
                     </div>
-                    <div className="fr-trainer"><div className="fr-trainer-head">TRAINER</div><div className="fr-trainer-row"><span>NAME</span><b>{myName}</b></div><div className="fr-trainer-row"><span>LV</span><b>{(me as any)?.player?.level ?? 1}</b></div><div className="fr-trainer-row"><span>XP</span><b>{(me as any)?.player?.xp ?? 0}/{((me as any)?.player?.level ?? 1)*100}</b></div><div className="fr-trainer-row"><span>AT</span><b>{(me as any)?.presence ? `${Math.round((me as any).presence.x)},${Math.round((me as any).presence.y)}` : "—"}</b></div></div>
+                    <div className="fr-trainer"><div className="fr-trainer-head">Trainer</div><div className="fr-trainer-row"><span>Name</span><b>{myName}</b></div><div className="fr-trainer-row"><span>Level</span><b>{(me as any)?.player?.level ?? 1}</b></div><div className="fr-trainer-row"><span>XP</span><b>{(me as any)?.player?.xp ?? 0} / {((me as any)?.player?.level ?? 1)*100}</b></div><div className="fr-trainer-row"><span>Position</span><b>{(me as any)?.presence ? `${Math.round((me as any).presence.x)}, ${Math.round((me as any).presence.y)}` : "—"}</b></div></div>
                   </div>
                 </div>
               )}
               {showDojo && (
                 <div className="fr-feynman-overlay" onClick={() => setShowDojo(false)}>
                   <div className="fr-feynman-modal" onClick={e=>e.stopPropagation()}>
-                    <DojoInterior playerId={myId} onExit={()=>setShowDojo(false)} onLeveledUp={(lvl,xp)=>showToast(`LEVEL UP! → LV ${lvl}  +${xp} XP`)} />
+                    <DojoInterior playerId={myId} onExit={()=>setShowDojo(false)} onLeveledUp={(lvl,xp)=>showToast(`Level up → Lv ${lvl}  +${xp} XP`)} />
                   </div>
                 </div>
               )}
               {toast && <div className="fr-toast">{toast}</div>}
             </div>
           </div>
-          <div className="fr-side">
+          <aside className="fr-side">
             <div className="fr-box dojo-box">
-              <div className="fr-box-title">⛩ FEYNMAN DOJO — NORTH GATE</div>
+              <div className="fr-box-title">Feynman Dojo — Village Center Building</div>
               <div className="fr-dojo-card">
                 <div className="fr-dojo-icon">⛩</div>
                 <div className="fr-dojo-text">
-                  <b>FEYNMAN DOJO</b>
-                  <span>Moved to north gate — top center</span>
-                  <span>Walk north + ENTER to go inside</span>
+                  <b>Feynman Dojo</b>
+                  <span>Inside the big central building</span>
+                  <span>Walk to center + Enter at door</span>
                 </div>
-                <button className={`fr-dojo-enter ${hasActiveLoop ? "pulse" : ""}`} onClick={()=>setShowDojo(true)}>{hasActiveLoop ? "● RESUME" : "▶ ENTER HOME"}</button>
+                <button className={`fr-dojo-enter ${hasActiveLoop ? "pulse" : ""}`} onClick={()=>setShowDojo(true)}>{hasActiveLoop ? "Resume" : "Enter"}</button>
               </div>
               <div className="fr-dojo-stats">
                 <span>Lv {(me as any)?.player?.level ?? 1}</span>
-                <span className="fr-dojo-xp"><i style={{width:`${Math.min(100, ((me as any)?.player?.xp ?? 0)/((me as any)?.player?.level ?? 1))}%`}} /> {(me as any)?.player?.xp ?? 0} XP</span>
+                <span className="fr-dojo-xp"><i style={{width:`${Math.min(100, ((me as any)?.player?.xp ?? 0)/(((me as any)?.player?.level ?? 1)*100)*100)}%`}} /> {(me as any)?.player?.xp ?? 0} XP</span>
                 <span>{(me as any)?.player?.totalExplanations ?? 0} loops</span>
               </div>
-              {hasActiveLoop && <div className="fr-dojo-active">● ACTIVE: “{(activeFeynman?.session as any)?.topic}” {activeFeynman?.session.turnCount}/{activeFeynman?.session.maxTurns}</div>}
-              <div className="fr-dojo-hint">Inside: lobby → allow mic → START TRAINING → voice loop → rating &amp; XP</div>
+              {hasActiveLoop && <div className="fr-dojo-active">Active: “{(activeFeynman?.session as any)?.topic}” — {activeFeynman?.session.turnCount}/{activeFeynman?.session.maxTurns}</div>}
+              <div className="fr-dojo-hint">Reuse of existing building — no extra tower. Inside: lobby → mic → training → rating & XP.</div>
             </div>
-            <div className="fr-box"><div className="fr-box-title">TRAINERS</div><div className="fr-box-list">{!online ? <span className="fr-muted">LOADING...</span> : online.map((o:any)=>(<div key={o.player._id} className={`fr-row ${o.player._id===myId?"me":""}`}><i style={{ background: o.player.color }} /><span>{o.player.name}</span><em>Lv{o.player.level}</em><span className="fr-dot">●</span></div>))}</div></div>
-            <div className="fr-box"><div className="fr-box-title">TOWN PEOPLE</div><div className="fr-box-list">{npcs?.map((n:any)=>(<button key={n._id} onClick={()=>handleInteract(n._id)} className={`fr-row-btn ${activeNpcId===n._id?"on":""}`}><i style={{ background: n.color }} /><span>{n.name}</span><em>{n.role}</em></button>))}</div></div>
-            <div className="fr-box soft"><div className="fr-box-title">FIRE RED CONTROLS</div><div className="fr-help"><p>GRID MOVE: One tile per press (32px)</p><p><b>ENTER</b> — TALK to NPC / enter <b>⛩ DOJO</b> (north gate)</p><p><b>F</b> — Open DOJO anywhere</p><p><b>M</b> — MENU</p><p>Go to <b>FEYNMAN DOJO</b> (north) + <b>ENTER</b> → enter home → START TRAINING</p><p>🎙️ uses <b>Web Speech API</b> — click SPEAK → Allow mic</p><p>LLM via <b>convex/ai.ts</b> — <code>LLM_PROVIDER</code> in .env</p></div></div>
-          </div>
+            <div className="fr-box">
+              <div className="fr-box-title">Trainers <span className="fr-box-count">{online?.length ?? 0}</span></div>
+              <div className="fr-box-list">{!online ? <span className="fr-muted">Loading…</span> : online.map((o:any)=>(<div key={o.player._id} className={`fr-row ${o.player._id===myId?"me":""}`}><i style={{ background: o.player.color }} /><span className="fr-row-name">{o.player.name}</span><em>Lv{o.player.level}</em><span className="fr-row-dot">●</span></div>))}</div>
+            </div>
+            <div className="fr-box">
+              <div className="fr-box-title">Live Map <span className="fr-box-count">Realtime</span></div>
+              <div className="fr-minimap-wrap">
+                <div className="fr-minimap">
+                  {/* faint grid */}
+                  <div className="fr-minimap-grid" />
+                  {/* Dojo building */}
+                  <div className="fr-minimap-dojo" title="Dojo - Central Building" />
+                  {/* NPCs */}
+                  {npcs?.map((n:any)=>(
+                    <div
+                      key={n._id}
+                      className={`fr-minimap-dot npc ${activeNpcId===n._id ? "active" : ""}`}
+                      style={{ left: `${(n.x/1280*100).toFixed(2)}%`, top: `${(n.y/1280*100).toFixed(2)}%`, background: n.color }}
+                      title={n.name}
+                    />
+                  ))}
+                  {/* Other players */}
+                  {online?.map((o:any)=>(
+                    <div
+                      key={o.player._id}
+                      className={`fr-minimap-dot player ${o.player._id===myId ? "me" : ""}`}
+                      style={{ left: `${(o.presence.x/1280*100).toFixed(2)}%`, top: `${(o.presence.y/1280*100).toFixed(2)}%`, background: o.player.color, borderColor: o.player._id===myId ? "#1c1917" : "#fff" }}
+                      title={`${o.player.name} Lv${o.player.level}`}
+                    />
+                  ))}
+                  {/* my position if not in online (fallback) */}
+                  {me && (me as any)?.presence && !online?.some((o:any)=>o.player._id===myId) && (
+                    <div className="fr-minimap-dot player me" style={{ left: `${((me as any).presence.x/1280*100).toFixed(2)}%`, top: `${((me as any).presence.y/1280*100).toFixed(2)}%`, background: (me as any).player.color }} />
+                  )}
+                </div>
+                <div className="fr-minimap-legend">
+                  <span><i style={{background:"#1c1917"}} /> You</span>
+                  <span><i style={{background:"#f59e0b"}} /> NPC</span>
+                  <span><i style={{background:"#e9ddd0", border:"1px solid #1c1917"}} /> Dojo</span>
+                  <span className="fr-minimap-hint">Live • {online?.length ?? 0} trainers move in real-time</span>
+                </div>
+              </div>
+            </div>
+            <div className="fr-box">
+              <div className="fr-box-title">Town people <span className="fr-box-count">{npcs?.length ?? 0}</span></div>
+              <div className="fr-box-list">{npcs?.map((n:any)=>(<button key={n._id} onClick={()=>handleInteract(n._id)} className={`fr-row-btn ${activeNpcId===n._id?"on":""}`}><i style={{ background: n.color }} /><span className="fr-row-name">{n.name}</span><em>{n.role}</em></button>))}</div>
+            </div>
+            <div className="fr-box soft">
+              <div className="fr-box-title">How to play</div>
+              <div className="fr-help">
+                <p><b>Move</b> one tile at a time — grid based.</p>
+                <p><b>Enter</b> — Talk to people / enter Dojo.</p>
+                <p><b>F</b> — Open Dojo from anywhere.</p>
+                <p><b>M</b> — Toggle menu.</p>
+                <p className="fr-help-muted">Voice uses Web Speech API — tap Speak and allow mic. Or just type. LLM provider is set via <code>LLM_PROVIDER</code> in <code>.env.local</code>.</p>
+              </div>
+            </div>
+          </aside>
         </div>
-        <div className="fr-footer">FEYMON • FIRE RED GRID • FEYNMAN DOJO • OPEN SOURCE • NOT AFFILIATED WITH NINTENDO</div>
+        <footer className="fr-footer">Feymon — A minimal open world for learning. Inspired by Mobbin. Open source • Not affiliated with Nintendo.</footer>
       </div>
     </>
   );
 }
-const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Inter:wght@500;700&display=swap');
-  *{box-sizing:border-box}
+const styles = `*{box-sizing:border-box}
   html,body{margin:0;padding:0}
-  body{background:#050a1a;color:#0a0a0a;font-family:'VT323',monospace}
-  .fr-root{min-height:100dvh;display:flex;flex-direction:column;background:radial-gradient(1000px 600px at 50% -10%, #1a2f5a 0%, #080c18 55%), linear-gradient(180deg, #0a1020 0%, #050a1a 100%)}
-  .fr-header{position:sticky;top:0;z-index:20;background:linear-gradient(180deg, #2e4a8a 0%, #1a2f5a 100%);border-bottom:4px solid #000;box-shadow:0 4px 0 rgba(0,0,0,0.5)}
-  .fr-header-inner{max-width:1280px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-family:'Press Start 2P',monospace;font-size:7px}
-  .fr-ball{color:#ffcb05;font-size:12px;text-shadow:1px 1px 0 #000}
-  .fr-title{color:#fff;letter-spacing:0.06em;text-shadow:1px 1px 0 #000;font-size:9px}
-  .fr-loc{margin-left:6px;color:#a8c0e8;background:#000;padding:4px 8px;border:2px solid #fff;font-size:6px;box-shadow:2px 2px 0 #000}
-  .fr-live{margin-left:auto;background:#000;color:#fff;padding:6px 10px;border:2px solid #fff;display:flex;align-items:center;gap:6px;box-shadow:2px 2px 0 #000}
-  .fr-live i{width:7px;height:7px;background:#22c55e;border-radius:50%;box-shadow:0 0 8px #22c55e;animation:pulse 1.6s infinite}
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.7}}
-  .fr-dojo-btn{font-family:'Press Start 2P',monospace;font-size:6px;padding:8px 10px;border:3px solid #000;background:#fff;color:#000;box-shadow:2px 2px 0 #000;cursor:pointer}
-  .fr-dojo-btn.active{background:#ffcb05;animation:blink 0.9s infinite}
-  .fr-dojo-btn:hover{transform:translate(-1px,-1px);box-shadow:3px 3px 0 #000}
-  .fr-menu-btn,.fr-quit{font-family:'Press Start 2P',monospace;font-size:6px;padding:8px 12px;border:3px solid #000;box-shadow:2px 2px 0 #000;cursor:pointer;transition:transform 0.08s}
-  .fr-menu-btn{background:#ffcb05;color:#000}
-  .fr-menu-btn:hover{transform:translate(-1px,-1px);box-shadow:3px 3px 0 #000}
-  .fr-quit{background:#ff5a5a;color:#fff}
-  .fr-gate{min-height:100dvh;display:grid;place-items:center;padding:20px;background:radial-gradient(800px 500px at 50% 0%, #1e3a6a 0%, #080c18 70%)}
-  .fr-gate-card{width:min(900px, 96vw);display:grid;grid-template-columns:1.05fr 0.95fr;gap:0;background:#f8f8f8;border:4px solid #000;box-shadow:8px 8px 0 #000;overflow:hidden;border-radius:2px}
-  .fr-gate-left{background:linear-gradient(180deg, #5a8ad0 0%, #3a5a8c 100%);padding:20px;color:#fff;display:flex;flex-direction:column;gap:14px;position:relative}
-  .fr-gate-left::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg, transparent 0 3px, rgba(0,0,0,0.04) 3px 4px);pointer-events:none}
-  .fr-oak-sprite{width:72px;height:72px;display:grid;place-items:center;background:#fff;border:4px solid #000;font:700 28px/1 'Press Start 2P',monospace;color:#000;box-shadow:4px 4px 0 #000}
-  .fr-oak-box{background:#fff;border:4px solid #000;box-shadow:4px 4px 0 rgba(0,0,0,0.3);padding:12px;color:#000;font-size:16px;line-height:1.5;position:relative}
-  .fr-oak-box::before{content:"PROF. OAK";position:absolute;top:-12px;left:12px;background:#ffcb05;border:3px solid #000;padding:3px 8px;font-family:'Press Start 2P',monospace;font-size:6px;box-shadow:2px 2px 0 #000}
-  .fr-gate-right{background:#fff;padding:20px;border-left:4px solid #000;display:flex;flex-direction:column}
-  .fr-form-title{font-family:'Press Start 2P',monospace;font-size:9px;background:#ffcb05;border:3px solid #000;padding:9px;text-align:center;box-shadow:3px 3px 0 #000;letter-spacing:0.04em}
-  .fr-field{display:grid;gap:6px;margin:14px 0;font-family:'Press Start 2P',monospace;font-size:7px}
-  .fr-field input{padding:10px 12px;border:3px solid #000;font-family:'Press Start 2P',monospace;font-size:8px;box-shadow:inset 2px 2px 0 rgba(0,0,0,0.08);background:#fffff8}
-  .fr-field input:focus{outline:none;background:#ffffcc;border-color:#2a4a8a}
-  .fr-colors{display:flex;gap:8px;flex-wrap:wrap}
-  .fr-dot{width:26px;height:26px;border:3px solid #000;box-shadow:2px 2px 0 #000;cursor:pointer;transition:transform 0.08s}
-  .fr-dot:hover{transform:translateY(-1px)}
-  .fr-dot.on{outline:3px solid #ffcb05;outline-offset:2px;transform:scale(1.05)}
-  .fr-btn{width:100%;padding:11px;border:3px solid #000;background:#ffcb05;font-family:'Press Start 2P',monospace;font-size:8px;box-shadow:3px 3px 0 #000;cursor:pointer;letter-spacing:0.04em}
-  .fr-btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 #000}
-  .fr-landscape{max-width:1280px;width:100%;margin:0 auto;padding:16px;display:grid;grid-template-columns:1.45fr 320px;gap:16px;align-items:start;flex:1}
-  .fr-game-col{display:flex;flex-direction:column;gap:14px;min-width:0}
-  .fr-frame{position:relative;background:#000;border:4px solid #000;box-shadow:6px 6px 0 #000;overflow:hidden;border-radius:2px}
-  .fr-frame .phaser-wrap{width:100% !important;aspect-ratio: 16 / 9 !important;max-width:none !important;border:none !important;border-radius:0 !important}
-  .fr-loading{height:360px;display:grid;place-items:center;background:#78c850;font-family:'Press Start 2P',monospace;font-size:10px;color:#000;letter-spacing:0.04em}
-  .fr-loc-banner{position:absolute;top:10px;left:10px;background:linear-gradient(180deg, #2a4a8c 0%, #1e3a6a 100%);color:#fff;border:3px solid #000;padding:6px 10px;font-family:'Press Start 2P',monospace;font-size:6px;box-shadow:3px 3px 0 #000;z-index:10;letter-spacing:0.04em}
-  .fr-ctrl{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:#000;color:#fff;font-family:'Press Start 2P',monospace;font-size:5px;padding:5px 10px;border:2px solid #fff;white-space:nowrap;z-index:10;box-shadow:2px 2px 0 rgba(0,0,0,0.5)}
-  .fr-dialog{position:absolute;bottom:32px;left:10px;right:10px;background:#f8f8f8;border:4px solid #000;box-shadow:4px 4px 0 rgba(0,0,0,0.4);padding:12px;z-index:15}
-  .fr-dialog-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-  .fr-who{font-family:'Press Start 2P',monospace;font-size:7px;color:#c00;background:#fff;border:2px solid #000;padding:4px 8px;box-shadow:2px 2px 0 #000}
-  .fr-x{margin-left:auto;width:22px;height:22px;border:2px solid #000;background:#ff5a5a;color:#fff;cursor:pointer;font:700 14px/1 monospace;display:grid;place-items:center}
-  .fr-dialog-body{font-family:'Press Start 2P',monospace;font-size:7px;line-height:1.7;color:#000}
-  .fr-dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
-  .fr-btn-sm{padding:7px 10px;border:3px solid #000;background:#fff;font-family:'Press Start 2P',monospace;font-size:6px;box-shadow:2px 2px 0 #000;cursor:pointer}
-  .fr-btn-sm.primary{background:#ffcb05}
-  .fr-btn-sm:active{transform:translate(1px,1px);box-shadow:1px 1px 0 #000}
-  .fr-arrow{position:absolute;bottom:8px;right:12px;animation:blink 0.8s infinite;font-size:10px}
-  @keyframes blink{0%,50%{opacity:1}51%,100%{opacity:0}}
-  .fr-menu-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.65);display:grid;place-items:center;z-index:20;padding:16px;backdrop-filter:blur(2px)}
-  .fr-start-box{width:min(340px, 92%);background:linear-gradient(180deg, #5a8ad0 0%, #3a5a8c 100%);border:4px solid #000;box-shadow:6px 6px 0 #000;overflow:hidden}
-  .fr-start-title{background:#ffcb05;border-bottom:4px solid #000;padding:10px;text-align:center;font-family:'Press Start 2P',monospace;font-size:9px;letter-spacing:0.06em}
-  .fr-start-list{padding:10px;display:grid;gap:6px}
-  .fr-start-item{padding:10px 12px;background:#f8f8f8;border:3px solid #000;font-family:'Press Start 2P',monospace;font-size:7px;display:flex;gap:8px;box-shadow:2px 2px 0 rgba(0,0,0,0.2);align-items:center}
-  .fr-start-item em{margin-left:auto;color:#3a5a8c}
-  .fr-start-item.as-btn{cursor:pointer;width:100%;text-align:left}
-  .fr-start-item.on{background:#fff8c0;border-color:#c00}
-  .fr-trainer{margin:10px;background:#f8f8f8;border:3px solid #000;padding:10px}
-  .fr-trainer-head{font-family:'Press Start 2P',monospace;font-size:6px;background:#000;color:#fff;padding:5px;text-align:center;letter-spacing:0.04em}
-  .fr-trainer-row{display:flex;justify-content:space-between;font-family:'Press Start 2P',monospace;font-size:6px;padding:5px 0;border-bottom:1px solid #e0e0e0}
-  .fr-side{display:grid;gap:14px;align-content:start}
-  .fr-box{background:#f8f8f8;border:4px solid #000;box-shadow:4px 4px 0 #000;overflow:hidden}
-  .fr-box-title{background:#000;color:#fff;padding:8px 10px;font-family:'Press Start 2P',monospace;font-size:6px;letter-spacing:0.06em;display:flex;align-items:center;gap:6px}
-  .fr-box-title::before{content:"";width:3px;height:10px;background:#ffcb05;display:inline-block}
-  .fr-box-list{padding:8px;display:grid;gap:5px;max-height:220px;overflow:auto;background:#fff}
-  .fr-box-list::-webkit-scrollbar{width:6px}
-  .fr-box-list::-webkit-scrollbar-thumb{background:#c0c0c0;border:1px solid #000}
-  .fr-row{display:flex;align-items:center;gap:8px;padding:7px 8px;background:#f0f0f0;border:2px solid #000;font-family:'Press Start 2P',monospace;font-size:6px;box-shadow:1px 1px 0 #000}
-  .fr-row.me{background:#fff8c0;border-color:#c00}
-  .fr-row i{width:9px;height:9px;border:2px solid #000;flex-shrink:0}
-  .fr-row em{margin-left:auto;color:#3a5a8c}
-  .fr-dot{color:#22c55e}
-  .fr-row-btn{width:100%;display:flex;align-items:center;gap:8px;padding:7px 8px;background:#f0f0f0;border:2px solid #000;font-family:'Press Start 2P',monospace;font-size:6px;cursor:pointer;box-shadow:1px 1px 0 #000;text-align:left;transition:background 0.08s}
-  .fr-row-btn:hover{background:#fff}
-  .fr-row-btn.on{background:#ffcb05}
-  .fr-help{padding:10px;font-family:'Press Start 2P',monospace;font-size:6px;line-height:1.7;background:#fff}
-  .fr-footer{padding:12px;text-align:center;font-family:'Press Start 2P',monospace;font-size:5px;color:#5a6a8a;border-top:2px solid #1a1a2e;margin-top:16px;letter-spacing:0.04em}
-  @media(max-width:900px){ .fr-landscape{grid-template-columns:1fr} .fr-gate-card{grid-template-columns:1fr} .fr-gate-right{border-left:none;border-top:4px solid #000} }
-  /* Feynman Dojo */
-  .fr-feynman-overlay{position:absolute;inset:0;z-index:30;background:rgba(0,0,0,0.68);display:grid;place-items:start center;padding:12px;overflow:auto;backdrop-filter:blur(3px)}
-  .fr-feynman-modal{width:min(740px, 96%);margin:12px auto;background:transparent}
-  .fr-toast{position:absolute;top:42px;left:50%;transform:translateX(-50%);background:#000;color:#ffcb05;border:3px solid #ffcb05;padding:10px 16px;font-family:'Press Start 2P',monospace;font-size:7px;box-shadow:4px 4px 0 #000;z-index:40;white-space:nowrap;animation:toastIn 0.2s}
-  @keyframes toastIn{from{transform:translateX(-50%) translateY(-8px);opacity:0}to{transform:translateX(-50%) translateY(0);opacity:1}}
-  .dojo-box{border-color:#c00}
-  .dojo-box .fr-box-title{background:#c00}
-  .fr-dojo-card{display:flex;gap:10px;align-items:center;padding:10px;background:linear-gradient(180deg,#fff 0%,#fff8c0 100%);border-bottom:3px solid #000}
-  .fr-dojo-icon{width:48px;height:48px;display:grid;place-items:center;background:#ffcb05;border:3px solid #000;font-size:22px;box-shadow:2px 2px 0 #000;flex-shrink:0}
-  .fr-dojo-text{display:grid;gap:1px;font-family:'Press Start 2P',monospace;line-height:1.2}
-  .fr-dojo-text b{font-size:7px}
-  .fr-dojo-text span{font-size:5.5px;color:#333;font-family:'VT323',monospace}
-  .fr-dojo-enter{margin-left:auto;padding:9px 12px;background:#ffcb05;border:3px solid #000;font-family:'Press Start 2P',monospace;font-size:6px;box-shadow:2px 2px 0 #000;cursor:pointer;white-space:nowrap}
-  .fr-dojo-enter.pulse{animation:blink 0.9s infinite;background:#fff}
-  .fr-dojo-enter:hover{transform:translate(-1px,-1px);box-shadow:3px 3px 0 #000}
-  .fr-dojo-stats{display:flex;gap:8px;padding:8px;background:#fff;border-bottom:2px solid #000;font-family:'Press Start 2P',monospace;font-size:5.5px}
-  .fr-dojo-stats span{background:#f0f0f0;border:2px solid #000;padding:4px 6px;box-shadow:1px 1px 0 #000}
+  body{background:#f7f3ec;color:#1c1917;font-family:'Inter',system-ui,-apple-system,sans-serif}
+  .fr-root{min-height:100dvh;display:flex;flex-direction:column;background:#f7f3ec}
+  /* header - warm minimal, mobbin style */
+  .fr-header{position:sticky;top:0;z-index:20;background:rgba(253,251,247,0.88);backdrop-filter:blur(12px) saturate(180%);-webkit-backdrop-filter:blur(12px) saturate(180%);border-bottom:1px solid #e9ddd0}
+  .fr-header-inner{max-width:1440px;margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .fr-brand{display:flex;align-items:center;gap:10px;min-width:0}
+  .fr-ball{width:28px;height:28px;display:grid;place-items:center;background:#1c1917;color:#fdfbf7;border-radius:8px;font-size:12px;flex-shrink:0}
+  .fr-title{font-size:15px;font-weight:650;letter-spacing:-0.02em;color:#1c1917}
+  .fr-loc{margin-left:8px;padding:4px 10px;background:#fdfbf7;border:1px solid #e9ddd0;border-radius:999px;font-size:12px;font-weight:500;color:#78716c;white-space:nowrap}
+  .fr-header-actions{margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0}
+  .fr-live{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;background:#fff;border:1px solid #e9ddd0;border-radius:999px;font-size:12px;font-weight:500;color:#57534e}
+  .fr-live i{width:6px;height:6px;background:#22c55e;border-radius:50%;box-shadow:0 0 0 4px rgba(34,197,94,0.14)}
+  .fr-dojo-btn{padding:8px 14px;border-radius:999px;border:1px solid #1c1917;background:#1c1917;color:#fdfbf7;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s}
+  .fr-dojo-btn:hover{opacity:0.92;transform:translateY(-1px)}
+  .fr-dojo-btn.active{background:#fff;color:#1c1917;border-color:#1c1917}
+  .fr-menu-btn{padding:8px 14px;border-radius:999px;border:1px solid #e9ddd0;background:#fff;color:#1c1917;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.15s}
+  .fr-menu-btn:hover{background:#fdfbf7;border-color:#d6c7b8}
+  .fr-quit{padding:8px 12px;border-radius:999px;border:1px solid transparent;background:transparent;color:#78716c;font-size:13px;font-weight:500;cursor:pointer}
+  .fr-quit:hover{background:#efe8dc;color:#1c1917}
+
+  /* gate - warm onboarding */
+  .fr-gate{min-height:100dvh;display:grid;place-items:center;padding:32px 16px;background:#f7f3ec;background-image:radial-gradient(#e9ddd0 1px, transparent 1px);background-size:24px 24px}
+  .fr-gate-card{width:min(920px,100%);display:grid;grid-template-columns:1.1fr 0.9fr;background:#fff;border:1px solid #e9ddd0;border-radius:24px;overflow:hidden;box-shadow:0 1px 2px rgba(28,25,23,0.04), 0 12px 32px rgba(28,25,23,0.08)}
+  .fr-gate-left{padding:28px 24px;background:#fdfbf7;display:flex;flex-direction:column;gap:14px;border-right:1px solid #f2e8d9}
+  .fr-gate-brand{display:flex;align-items:center;gap:8px}
+  .fr-gate-logo{width:28px;height:28px;display:grid;place-items:center;background:#1c1917;color:#fdfbf7;border-radius:8px;font-size:12px}
+  .fr-gate-brand-text{font-weight:600;letter-spacing:-0.02em}
+  .fr-gate-badge{padding:2px 8px;background:#fff;border:1px solid #e9ddd0;border-radius:999px;font-size:11px;font-weight:600;color:#78716c}
+  .fr-gate-h1{margin:6px 0 0 0;font-size:26px;font-weight:700;letter-spacing:-0.03em;line-height:1.1;color:#1c1917}
+  .fr-gate-sub{margin:0;color:#78716c;font-size:13.5px;line-height:1.6}
+  .fr-oak-box{background:#fff;border:1px solid #e9ddd0;border-radius:16px;padding:14px;color:#292524;font-size:13px;line-height:1.6}
+  .fr-oak-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-weight:600;font-size:12px;color:#1c1917}
+  .fr-oak-avatar{width:24px;height:24px;display:grid;place-items:center;background:#f5efe6;border:1px solid #e9ddd0;border-radius:999px;font-size:13px}
+  .fr-oak-tag{margin-left:auto;padding:3px 8px;background:#fdfbf7;border:1px solid #e9ddd0;border-radius:999px;font-size:11px;color:#78716c}
+  .fr-oak-box p{margin:0}
+  .fr-gate-meta{margin-top:auto;display:flex;flex-direction:column;gap:4px;padding-top:14px;border-top:1px solid #f2e8d9;font-size:12px;color:#a8a29e}
+  .fr-gate-right{padding:24px 20px;display:flex;flex-direction:column;background:#fff}
+  .fr-form-title{font-size:16px;font-weight:600;letter-spacing:-0.02em;color:#1c1917}
+  .fr-form-sub{margin:6px 0 16px 0;font-size:13px;color:#78716c;line-height:1.5}
+  .fr-field{display:grid;gap:6px;margin:12px 0}
+  .fr-field span{font-size:12px;font-weight:600;color:#292524;letter-spacing:-0.01em}
+  .fr-field input{padding:11px 12px;border:1px solid #e7ddd0;border-radius:10px;background:#fdfbf7;font-size:14px;transition:border-color 0.15s, box-shadow 0.15s}
+  .fr-field input::placeholder{color:#a8a29e}
+  .fr-field input:focus{outline:none;border-color:#1c1917;box-shadow:0 0 0 3px rgba(28,25,23,0.08);background:#fff}
+  .fr-colors{display:flex;gap:8px;flex-wrap:wrap;padding-top:2px}
+  .fr-dot{width:30px;height:30px;border-radius:999px;border:2px solid #fff;box-shadow:0 0 0 1px #e7ddd0, 0 1px 2px rgba(28,25,23,0.06);cursor:pointer;transition:transform 0.12s, box-shadow 0.12s}
+  .fr-dot:hover{transform:scale(1.06)}
+  .fr-dot.on{box-shadow:0 0 0 2px #1c1917, 0 2px 8px rgba(28,25,23,0.14);transform:scale(1.05)}
+  .fr-btn{width:100%;padding:12px 16px;border-radius:12px;border:1px solid #1c1917;background:#1c1917;color:#fdfbf7;font-size:14px;font-weight:600;cursor:pointer;transition:opacity 0.15s, transform 0.12s;letter-spacing:-0.01em}
+  .fr-btn:hover{opacity:0.92}
+  .fr-btn:active{transform:scale(0.99)}
+  .fr-btn:disabled{opacity:0.6;cursor:not-allowed}
+  .fr-err{margin-top:10px;padding:10px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;color:#991b1b;font-size:13px}
+  .fr-hint{margin:8px 0 0 0;font-size:11.5px;color:#a8a29e;line-height:1.5;text-align:center}
+
+  /* layout */
+  .fr-landscape{max-width:1440px;width:100%;margin:0 auto;padding:20px;display:grid;grid-template-columns:1fr 360px;gap:20px;align-items:start;flex:1}
+  .fr-game-col{display:flex;flex-direction:column;min-width:0}
+  .fr-frame{position:relative;background:#fff;border:1px solid #e9ddd0;border-radius:20px;overflow:hidden;box-shadow:0 1px 2px rgba(28,25,23,0.04), 0 4px 16px rgba(28,25,23,0.06)}
+  .fr-frame .phaser-wrap{width:100% !important;aspect-ratio:16/9 !important;max-width:none !important;border:none !important;border-radius:0 !important}
+  .fr-loading{height:360px;display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:center;background:#fdfbf7;color:#78716c;font-size:13px;font-weight:500}
+  .fr-spinner{width:20px;height:20px;border:2px solid #e9ddd0;border-top-color:#1c1917;border-radius:50%;animation:spin 0.7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .fr-loc-banner{position:absolute;top:10px;left:10px;padding:6px 10px;background:rgba(255,255,255,0.94);backdrop-filter:blur(8px);border:1px solid #e9ddd0;border-radius:999px;font-size:11.5px;font-weight:500;color:#44403c;box-shadow:0 1px 3px rgba(28,25,23,0.08);z-index:10}
+  .fr-ctrl{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);padding:5px 10px;background:rgba(28,25,23,0.88);backdrop-filter:blur(8px);color:#fdfbf7;border-radius:999px;font-size:11px;font-weight:500;letter-spacing:-0.01em;white-space:nowrap;z-index:10;box-shadow:0 2px 8px rgba(28,25,23,0.18)}
+  .fr-dialog{position:absolute;bottom:48px;left:10px;right:10px;background:#fff;border:1px solid #e9ddd0;border-radius:16px;padding:14px;z-index:15;box-shadow:0 12px 32px rgba(28,25,23,0.14)}
+  .fr-dialog-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+  .fr-who{padding:5px 10px;background:#1c1917;color:#fdfbf7;border-radius:999px;font-size:12px;font-weight:600;letter-spacing:-0.01em}
+  .fr-x{margin-left:auto;width:28px;height:28px;border-radius:999px;border:1px solid #e9ddd0;background:#fff;color:#78716c;cursor:pointer;display:grid;place-items:center;font-size:16px;line-height:1}
+  .fr-x:hover{background:#fdfbf7;color:#1c1917}
+  .fr-dialog-body{font-size:13.5px;line-height:1.6;color:#292524}
+  .fr-dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+  .fr-btn-sm{padding:8px 14px;border-radius:999px;border:1px solid #e7ddd0;background:#fff;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.12s}
+  .fr-btn-sm:hover{background:#fdfbf7}
+  .fr-btn-sm.primary{background:#1c1917;color:#fdfbf7;border-color:#1c1917}
+  .fr-btn-sm.primary:hover{opacity:0.92}
+  .fr-menu-overlay{position:absolute;inset:0;background:rgba(28,25,23,0.36);backdrop-filter:blur(4px);display:grid;place-items:center;z-index:20;padding:16px}
+  .fr-start-box{width:min(360px,92%);background:#fff;border:1px solid #e9ddd0;border-radius:20px;overflow:hidden;box-shadow:0 16px 40px rgba(28,25,23,0.18)}
+  .fr-start-title{padding:16px 16px 6px 16px;font-size:15px;font-weight:600;letter-spacing:-0.02em;color:#1c1917}
+  .fr-start-sub{margin:0;padding:0 16px 12px 16px;font-size:13px;color:#78716c;border-bottom:1px solid #f5efe6}
+  .fr-start-list{padding:12px;display:grid;gap:8px}
+  .fr-start-item{padding:11px 14px;background:#fdfbf7;border:1px solid #f2e8d9;border-radius:12px;font-size:13px;font-weight:500;display:flex;align-items:center;justify-content:space-between;gap:8px;color:#1c1917}
+  .fr-start-item em{font-style:normal;color:#78716c;font-weight:500;background:#fff;padding:3px 8px;border-radius:999px;border:1px solid #e9ddd0;font-size:12px}
+  .fr-start-item.as-btn{cursor:pointer;width:100%;text-align:left;transition:all 0.12s}
+  .fr-start-item.as-btn:hover{background:#fff;border-color:#e7ddd0}
+  .fr-start-item.on{background:#1c1917;color:#fdfbf7;border-color:#1c1917}
+  .fr-start-item.on em{background:rgba(255,255,255,0.14);color:#fdfbf7;border-color:rgba(255,255,255,0.18)}
+  .fr-trainer{margin:0 12px 12px 12px;background:#fdfbf7;border:1px solid #f2e8d9;border-radius:14px;padding:12px}
+  .fr-trainer-head{font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#78716c;margin-bottom:8px}
+  .fr-trainer-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f2e8d9;font-size:13px}
+  .fr-trainer-row:last-child{border-bottom:none}
+  .fr-trainer-row span{color:#78716c}
+  .fr-trainer-row b{font-weight:600;color:#1c1917}
+  .fr-side{display:grid;gap:16px;align-content:start;position:sticky;top:76px}
+  .fr-box{background:#fff;border:1px solid #e9ddd0;border-radius:16px;overflow:hidden;box-shadow:0 1px 2px rgba(28,25,23,0.03)}
+  .fr-box-title{padding:11px 14px;font-size:12px;font-weight:600;letter-spacing:-0.01em;color:#1c1917;background:#fdfbf7;border-bottom:1px solid #f2e8d9;display:flex;align-items:center;gap:8px}
+  .fr-box-title::before{content:"";width:6px;height:6px;border-radius:50%;background:#1c1917;flex-shrink:0}
+  .fr-box-count{margin-left:auto;padding:2px 8px;background:#fff;border:1px solid #e9ddd0;border-radius:999px;font-size:11px;font-weight:600;color:#78716c}
+  .fr-box-list{padding:10px;display:grid;gap:6px;max-height:240px;overflow:auto;background:#fff}
+  .fr-row{display:flex;align-items:center;gap:8px;padding:9px 10px;background:#fdfbf7;border:1px solid #f2e8d9;border-radius:12px;font-size:13px;transition:all 0.12s}
+  .fr-row.me{background:#1c1917;color:#fdfbf7;border-color:#1c1917}
+  .fr-row.me .fr-row-name,.fr-row.me em{color:#fdfbf7}
+  .fr-row i{width:8px;height:8px;border-radius:999px;border:1px solid rgba(28,25,23,0.08);flex-shrink:0}
+  .fr-row-name{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fr-row em{margin-left:auto;font-style:normal;color:#78716c;font-size:12px;font-weight:500;background:#fff;padding:2px 7px;border-radius:999px;border:1px solid #e9ddd0;flex-shrink:0}
+  .fr-row.me em{background:rgba(255,255,255,0.14);color:#fdfbf7;border-color:rgba(255,255,255,0.18)}
+  .fr-row-dot{font-size:8px}
+  .fr-muted{font-size:13px;color:#a8a29e;padding:8px}
+  .fr-row-btn{width:100%;display:flex;align-items:center;gap:8px;padding:9px 10px;background:#fdfbf7;border:1px solid #f2e8d9;border-radius:12px;font-size:13px;cursor:pointer;text-align:left;transition:all 0.12s;color:#1c1917}
+  .fr-row-btn:hover{background:#fff;border-color:#e7ddd0}
+  .fr-row-btn.on{background:#1c1917;color:#fdfbf7;border-color:#1c1917}
+  .fr-row-btn.on .fr-row-name,.fr-row-btn.on em{color:#fdfbf7}
+  .fr-row-btn.on em{background:rgba(255,255,255,0.14);border-color:rgba(255,255,255,0.18)}
+  .fr-row-btn i{width:8px;height:8px;border-radius:999px;flex-shrink:0;border:1px solid rgba(28,25,23,0.08)}
+  .fr-help{padding:14px;font-size:13px;line-height:1.6;color:#292524;background:#fff}
+  .fr-help p{margin:0 0 6px 0}
+  .fr-help p:last-child{margin-bottom:0}
+  .fr-help-muted{color:#78716c !important;font-size:12px !important;line-height:1.5 !important;margin-top:8px !important;padding-top:8px !important;border-top:1px solid #f5efe6}
+  .fr-help code{background:#fdfbf7;border:1px solid #e9ddd0;padding:2px 6px;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#1c1917}
+  .fr-footer{padding:18px;text-align:center;font-size:12px;color:#a8a29e;border-top:1px solid #f2e8d9;margin-top:20px;letter-spacing:-0.01em}
+  @media(max-width:980px){ .fr-landscape{grid-template-columns:1fr; padding:16px} .fr-side{position:static} .fr-gate-card{grid-template-columns:1fr} .fr-gate-left{border-right:none;border-bottom:1px solid #f2e8d9} .fr-header-inner{padding:0 16px} .fr-loc{display:none} }
+  @media(max-width:640px){ .fr-header-inner{height:52px} .fr-title{font-size:14px} .fr-live{display:none} .fr-landscape{padding:12px;gap:16px} .fr-frame{border-radius:16px} .fr-ctrl{font-size:10px;padding:5px 10px;bottom:8px} .fr-loc-banner{font-size:11px;top:8px;left:8px} }
+  /* feynman / dojo - FIXED overlay so it fits one screen */
+  .fr-feynman-overlay{position:fixed;inset:0;z-index:50;background:rgba(28,25,23,0.42);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);display:grid;place-items:center;padding:16px;overflow:auto}
+  .fr-feynman-modal{width:min(740px,100%);margin:auto;background:transparent;display:flex;justify-content:center}
+  .fr-toast{position:absolute;top:16px;left:50%;transform:translateX(-50%);background:#1c1917;color:#fdfbf7;border:1px solid #292524;padding:10px 16px;border-radius:999px;font-size:13px;font-weight:500;box-shadow:0 8px 24px rgba(28,25,23,0.22);z-index:40;white-space:nowrap;animation:toastIn 0.2s ease}
+  @keyframes toastIn{from{transform:translateX(-50%) translateY(-6px);opacity:0}to{transform:translateX(-50%) translateY(0);opacity:1}}
+  .dojo-box{border-color:#e9ddd0}
+  .dojo-box .fr-box-title{border-bottom:1px solid #f2e8d9}
+  .fr-dojo-card{display:flex;gap:12px;align-items:center;padding:14px;background:#fdfbf7;border-bottom:1px solid #f2e8d9}
+  .fr-dojo-icon{width:40px;height:40px;display:grid;place-items:center;background:#fff;border:1px solid #e9ddd0;border-radius:12px;font-size:16px;flex-shrink:0}
+  .fr-dojo-text{display:grid;gap:2px;line-height:1.25}
+  .fr-dojo-text b{font-size:13px;font-weight:600;letter-spacing:-0.01em;color:#1c1917}
+  .fr-dojo-text span{font-size:12px;color:#78716c}
+  .fr-dojo-enter{margin-left:auto;padding:8px 14px;background:#1c1917;color:#fdfbf7;border:1px solid #1c1917;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all 0.12s}
+  .fr-dojo-enter:hover{opacity:0.92}
+  .fr-dojo-enter.pulse{animation:pulseSoft 1.4s infinite}
+  @keyframes pulseSoft{0%,100%{box-shadow:0 0 0 0 rgba(28,25,23,0.12)}50%{box-shadow:0 0 0 6px rgba(28,25,23,0.08)}}
+  .fr-dojo-stats{display:flex;gap:8px;padding:10px 12px;background:#fff;border-bottom:1px solid #f2e8d9;font-size:12px;font-weight:500;color:#57534e}
+  .fr-dojo-stats span{padding:5px 10px;background:#fdfbf7;border:1px solid #f2e8d9;border-radius:999px}
   .fr-dojo-xp{flex:1;position:relative;overflow:hidden}
-  .fr-dojo-xp i{position:absolute;left:0;top:0;bottom:0;background:#ffcb05;opacity:0.5;z-index:0}
-  .fr-dojo-active{padding:7px 10px;background:#000;color:#ffcb05;font-family:'Press Start 2P',monospace;font-size:5.5px;letter-spacing:0.02em}
-  .fr-dojo-hint{padding:6px 8px;background:#fff3c0;border-top:2px dashed #bbb;font-family:'Press Start 2P',monospace;font-size:5px;color:#333}
+  .fr-dojo-xp i{position:absolute;left:0;top:0;bottom:0;background:#1c1917;opacity:0.08;z-index:0}
+  .fr-dojo-active{padding:8px 12px;background:#fdfbf7;color:#1c1917;font-size:12px;font-weight:500;border-bottom:1px solid #f2e8d9}
+  .fr-dojo-hint{padding:8px 12px;background:#fff;font-size:11px;color:#a8a29e}
+  /* minimap - live map */
+  .fr-minimap-wrap{padding:10px;background:#fff;display:grid;gap:8px}
+  .fr-minimap{position:relative;width:100%;height:180px;background:#fdfbf7;border:1px solid #f2e8d9;border-radius:12px;overflow:hidden}
+  .fr-minimap-grid{position:absolute;inset:0;background-image:linear-gradient(#f2e8d9 1px, transparent 1px), linear-gradient(90deg, #f2e8d9 1px, transparent 1px);background-size:32px 32px;opacity:0.35}
+  .fr-minimap-dojo{position:absolute;left:34.7%;top:37.5%;width:17.5%;height:7.5%;background:#fff;border:1.5px solid #1c1917;border-radius:4px;box-shadow:0 1px 4px rgba(28,25,23,0.12);background-image:linear-gradient(180deg,#fff 0%, #f59e0b 100%);opacity:0.95}
+  .fr-minimap-dojo::after{content:"⛩";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:10px}
+  .fr-minimap-dot{position:absolute;width:10px;height:10px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.24);transform:translate(-50%,-50%);transition:left 0.18s linear, top 0.18s linear}
+  .fr-minimap-dot.npc{width:11px;height:11px;border-color:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.28);z-index:2}
+  .fr-minimap-dot.npc.active{width:13px;height:13px;border-color:#1c1917;box-shadow:0 0 0 3px rgba(245,158,11,0.5)}
+  .fr-minimap-dot.player{width:10px;height:10px;z-index:3}
+  .fr-minimap-dot.player.me{width:12px;height:12px;border-color:#1c1917 !important;box-shadow:0 0 0 3px rgba(28,25,23,0.18), 0 1px 4px rgba(0,0,0,0.24);z-index:4}
+  .fr-minimap-legend{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:11px;color:#78716c}
+  .fr-minimap-legend i{width:8px;height:8px;border-radius:50%;display:inline-block;vertical-align:middle;margin-right:4px}
+  .fr-minimap-hint{margin-left:auto;font-size:10px;color:#a8a29e}
 `;
