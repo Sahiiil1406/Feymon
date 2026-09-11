@@ -100,6 +100,7 @@ export class OverworldScene extends Phaser.Scene {
   private chatTimers: Map<string, Phaser.Time.TimerEvent> = new Map();
 
   private moving = false;
+  private lastInteractAt = 0;
 
   constructor() {
     super("OverworldScene");
@@ -433,16 +434,14 @@ export class OverworldScene extends Phaser.Scene {
     this.keyD = kb.addKey(Phaser.Input.Keyboard.KeyCodes.D);
     this.keyE = kb.addKey(Phaser.Input.Keyboard.KeyCodes.E);
     this.keyEnter = kb.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
-    kb.on("keydown-E", () => this.tryInteract());
-    kb.on("keydown-SPACE", () => this.tryInteract());
-    kb.on("keydown-ENTER", () => this.tryInteract());
-    // Window fallback: ensure Enter/Space work even when Phaser canvas not focused (browser focus issues)
+    // Single reliable window fallback for when Phaser canvas not focused.
+    // We intentionally DO NOT use kb.on("keydown-ENTER") etc to avoid triple firing.
+    // Phaser update() with JustDown handles focused case; window handler handles unfocused.
     const winHandler = (e: KeyboardEvent) => {
       if (e.key === "Enter" || e.key === " " || e.key === "e" || e.key === "E") {
-        // avoid firing when typing in input/textarea
         const tag = (document.activeElement?.tagName || "").toLowerCase();
         if (tag === "input" || tag === "textarea" || tag === "select") return;
-        // slight throttle - let Phaser handle if already handled
+        if (Date.now() - this.lastInteractAt < 280) return;
         this.tryInteract();
       }
     };
@@ -715,11 +714,16 @@ export class OverworldScene extends Phaser.Scene {
     const right = (c?.right?.isDown ?? false) || this.keyD?.isDown;
     const up = (c?.up?.isDown ?? false) || this.keyW?.isDown;
     const down = (c?.down?.isDown ?? false) || this.keyS?.isDown;
-    if (left) this.tryGridMove("left");
-    else if (right) this.tryGridMove("right");
-    else if (up) this.tryGridMove("up");
-    else if (down) this.tryGridMove("down");
-    if (Phaser.Input.Keyboard.JustDown(this.keyE) || Phaser.Input.Keyboard.JustDown(this.keyEnter)) this.tryInteract();
+    // Block movement/enter when typing in overlay inputs
+    const activeTag = (document.activeElement?.tagName || "").toLowerCase();
+    const isTyping = activeTag === "input" || activeTag === "textarea" || activeTag === "select";
+    if (!isTyping) {
+      if (left) this.tryGridMove("left");
+      else if (right) this.tryGridMove("right");
+      else if (up) this.tryGridMove("up");
+      else if (down) this.tryGridMove("down");
+      if (Phaser.Input.Keyboard.JustDown(this.keyE) || Phaser.Input.Keyboard.JustDown(this.keyEnter)) this.tryInteract();
+    }
   }
 
   private tryGridMove(dir: PlayerSprite["direction"]) {
@@ -825,6 +829,8 @@ export class OverworldScene extends Phaser.Scene {
   }
 
   private tryInteract() {
+    if (Date.now() - this.lastInteractAt < 260) return;
+    this.lastInteractAt = Date.now();
     if (this.towerNearby) {
       this.callbacks?.onEnterFeynmanTower?.();
       return;

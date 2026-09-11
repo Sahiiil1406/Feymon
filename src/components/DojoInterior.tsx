@@ -5,11 +5,16 @@ type Props = {
   playerId: string;
   onExit: () => void;
   onLeveledUp?: (lvl: number, xp: number) => void;
+  initialPhase?: "lobby" | "training";
 };
 
-export default function DojoInterior({ playerId, onExit, onLeveledUp }: Props) {
-  const [phase, setPhase] = useState<"lobby" | "training">("lobby");
+export default function DojoInterior({ playerId, onExit, onLeveledUp, initialPhase = "lobby" }: Props) {
+  const [phase, setPhase] = useState<"lobby" | "training">(initialPhase);
   const [permStatus, setPermStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPhase(initialPhase);
+  }, [initialPhase]);
 
   useEffect(() => {
     try {

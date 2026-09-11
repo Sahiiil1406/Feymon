@@ -79,6 +79,9 @@ export default function App() {
   void _chatInput; void _setChatInput;
   const [showMenu, setShowMenu] = useState(false);
   const [showDojo, setShowDojo] = useState(false);
+  const [inDojoRoom, setInDojoRoom] = useState(false);
+  const [dojoInitialPhase, setDojoInitialPhase] = useState<"lobby" | "training">("lobby");
+  const [activeDojoNpcId, setActiveDojoNpcId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const playerIdConvex = myId as Id<"players"> | null;
   const me = useQuery(api.players.get, playerIdConvex ? { playerId: playerIdConvex } : "skip");
@@ -101,15 +104,26 @@ export default function App() {
     window.addEventListener("beforeunload", onUnload);
     return () => { clearInterval(iv); window.removeEventListener("beforeunload", onUnload); setOffline({ playerId: playerIdConvex }).catch(()=>{}); };
   }, [playerIdConvex, heartbeat, setOffline]);
+  // Global hotkeys — F enters room, Escape closes overlay/menu but NOT dojo room (requires Enter at door)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const tag = (document.activeElement?.tagName || "").toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select") return;
       if ((e.key === "m" || e.key === "M") && myId) setShowMenu((v) => !v);
-      if ((e.key === "f" || e.key === "F") && myId) setShowDojo((v) => !v);
-      if (e.key === "Escape") { setShowMenu(false); setActiveNpcId(null); if(showDojo) setShowDojo(false); }
+      if ((e.key === "f" || e.key === "F") && myId) {
+        if (showDojo) return;
+        if (!inDojoRoom) setInDojoRoom(true);
+        else setActiveDojoNpcId(null);
+      }
+      if (e.key === "Escape") {
+        if (showDojo) { setShowDojo(false); return; }
+        if (inDojoRoom) { setActiveDojoNpcId(null); return; } // do NOT exit room via Esc — must use Enter at door
+        setShowMenu(false); setActiveNpcId(null);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [myId, showDojo]);
+  }, [myId, showDojo, inDojoRoom]);
   const activeNpc = useMemo(() => { if (!activeNpcId || !npcs) return null; return npcs.find((n: any) => n._id === activeNpcId) ?? null; }, [activeNpcId, npcs]);
   const latestChat = useMemo(() => { if (!messages || messages.length === 0) return null; return messages[0]; }, [messages]);
   const lastMoveRef = useRef<{x:number;y:number;dir:string}>({x:0,y:0,dir:"down"});
@@ -130,7 +144,24 @@ export default function App() {
   }, [playerIdConvex, move]);
   const handleMove = doMove;
   const handleInteract = useCallback((id: string) => setActiveNpcId(id), []);
-  const handleEnterTower = useCallback(() => setShowDojo(true), []);
+  // Now: entering the big central building moves you INSIDE the dojo room (new Phaser scene) — no instant popup
+  const handleEnterTower = useCallback(() => {
+    setInDojoRoom(true);
+    setActiveNpcId(null);
+  }, []);
+  const handleExitDojo = useCallback(() => {
+    setInDojoRoom(false);
+    setShowDojo(false);
+    setActiveDojoNpcId(null);
+  }, []);
+  const handleTalkSensei = useCallback(() => {
+    // Talk to main NPC Master Kairo -> open same loop, start in training directly
+    setDojoInitialPhase("training");
+    setShowDojo(true);
+  }, []);
+  const handleTalkDojoNpc = useCallback((id: string) => {
+    setActiveDojoNpcId(id);
+  }, []);
   const _handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     const _body = (_chatInput as string).trim(); if (!_body) return;
@@ -158,9 +189,13 @@ export default function App() {
             </div>
             <div className="fr-header-actions">
               <span className="fr-live"><i />{online?.length ?? 0} online</span>
-              <button className={`fr-dojo-btn ${hasActiveLoop ? "active" : ""}`} onClick={() => setShowDojo(true)}>
-                {hasActiveLoop ? "Dojo • Active" : "Dojo"}
-              </button>
+              {!inDojoRoom ? (
+                <button className={`fr-dojo-btn ${hasActiveLoop ? "active" : ""}`} onClick={() => setInDojoRoom(true)}>
+                  {hasActiveLoop ? "Dojo • Active" : "Enter Dojo"}
+                </button>
+              ) : (
+                <button className="fr-dojo-btn active" onClick={handleExitDojo}>Exit Dojo</button>
+              )}
               <button className="fr-menu-btn" onClick={() => setShowMenu(!showMenu)}>Menu</button>
               <button className="fr-quit" onClick={handleLogout}>Sign out</button>
             </div>
@@ -171,26 +206,68 @@ export default function App() {
           <div className="fr-game-col">
             <div className="fr-frame">
               {isLoading ? <div className="fr-loading"><span className="fr-spinner" /> Loading world…</div> : (
-                <PhaserGame myPlayerId={myId} players={online as any} npcs={npcs as any} me={me as any} onMove={handleMove} onInteractNpc={handleInteract} onEnterFeynmanTower={handleEnterTower} latestChat={latestChat} />
+                <PhaserGame
+                  myPlayerId={myId}
+                  players={online as any}
+                  npcs={npcs as any}
+                  me={me as any}
+                  onMove={handleMove}
+                  onInteractNpc={handleInteract}
+                  onEnterFeynmanTower={handleEnterTower}
+                  onTalkSensei={handleTalkSensei}
+                  onTalkDojoNpc={handleTalkDojoNpc}
+                  onExitDojo={handleExitDojo}
+                  latestChat={latestChat}
+                  activeMap={inDojoRoom ? "dojo" : "overworld"}
+                />
               )}
-              <div className="fr-loc-banner">Feymon Village — Dojo inside the big central building. Find the ⛩ sign.</div>
-              <div className="fr-ctrl">Move: WASD / Arrows • Enter: Talk / Enter Dojo (big building) • Click door • F: Dojo • M: Menu</div>
-              {activeNpc && (
+              <div className="fr-loc-banner">{inDojoRoom ? "Dojo — Training Hall • Master Kairo (center) • Enter at south door ONLY to exit" : "Feymon Village — Dojo inside the big central building. Walk to center ⛩ + Enter to go inside"}</div>
+              <div className="fr-ctrl">{inDojoRoom ? "Inside Dojo: WASD • Enter: Talk / Exit ONLY at south door + Enter • Click NPCs to talk" : "Move: WASD / Arrows • Enter: Talk / Enter Dojo (big building) • Click door • F: Enter Dojo • M: Menu"}</div>
+              {!inDojoRoom && activeNpc && (
                 <div className="fr-dialog">
                   <div className="fr-dialog-head"><span className="fr-who">{activeNpc.name}</span><button className="fr-x" onClick={() => setActiveNpcId(null)} aria-label="Close">×</button></div>
                   <div className="fr-dialog-body">“{activeNpc.introLine}”</div>
                   <div className="fr-dialog-actions"><button className="fr-btn-sm" onClick={() => setActiveNpcId(null)}>Dismiss</button><button className="fr-btn-sm primary" onClick={() => { if(playerIdConvex) sendMsg({ authorId: playerIdConvex, body: `Hi ${activeNpc.name}!`, mapId:"overworld", channel:"nearby"});}}>Say hi</button></div>
                 </div>
               )}
+              {inDojoRoom && activeDojoNpcId && (() => {
+                const map: Record<string, { name:string, intro:string, action?:string }> = {
+                  "dojo-sensei": { name: "Master Kairo", intro: "Welcome, seeker. You have entered the heart of the dojo. Speak your topic simply — I will counter, you will clarify. Ready to evolve?", action: "train" },
+                  "dojo-assist": { name: "Acolyte Rin", intro: "I help find the gaps in simple explanations. The master will test your analogies — I note where you hide jargon." },
+                  "dojo-scholar": { name: "Scholar Nova", intro: "Every idea has a hidden assumption. I will ask the question you didn't expect. Talk to Master Kairo to begin loops." },
+                  "dojo-rival": { name: "Rival Kai", intro: "Heh, think you can teach it cold? The sensei gives you a score 1–10. Try to beat my 8.4 on Recursion!" },
+                };
+                const d = map[activeDojoNpcId];
+                if (!d) return null;
+                return (
+                  <div className="fr-dialog">
+                    <div className="fr-dialog-head"><span className="fr-who">{d.name}</span><button className="fr-x" onClick={() => setActiveDojoNpcId(null)} aria-label="Close">×</button></div>
+                    <div className="fr-dialog-body">“{d.intro}”</div>
+                    <div className="fr-dialog-actions">
+                      <button className="fr-btn-sm" onClick={() => setActiveDojoNpcId(null)}>Dismiss</button>
+                      {d.action === "train" ? (
+                        <button className="fr-btn-sm primary" onClick={() => { setActiveDojoNpcId(null); handleTalkSensei(); }}>Start Training →</button>
+                      ) : (
+                        <button className="fr-btn-sm primary" onClick={() => { setActiveDojoNpcId(null); setDojoInitialPhase("training"); setShowDojo(true); }}>Ask Master →</button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
               {showMenu && (
                 <div className="fr-menu-overlay" onClick={() => setShowMenu(false)}>
                   <div className="fr-start-box" onClick={e=>e.stopPropagation()}>
                     <div className="fr-start-title">Menu</div>
                     <p className="fr-start-sub">Quick overview of your session.</p>
                     <div className="fr-start-list">
-                      <div className="fr-start-item on"><span>Map</span><em>Village</em></div>
+                      <div className="fr-start-item on"><span>Map</span><em>{inDojoRoom ? "Dojo Hall" : "Village"}</em></div>
                       <div className="fr-start-item"><span>Online</span><em>{online?.length ?? 0}</em></div>
-                      <div className="fr-start-item"><span>Town people</span><em>{npcs?.length ?? 0}</em></div>
+                      <div className="fr-start-item"><span>Town people</span><em>{inDojoRoom ? "4 (Dojo)" : (npcs?.length ?? 0)}</em></div>
+                      {!inDojoRoom ? (
+                        <button className="fr-start-item as-btn" onClick={()=>{setShowMenu(false); setInDojoRoom(true);}}><span>Enter Dojo</span><em>⛩</em></button>
+                      ) : (
+                        <button className="fr-start-item as-btn" onClick={()=>{setShowMenu(false); handleExitDojo();}}><span>Back to Village</span><em>↩</em></button>
+                      )}
                       <button className="fr-start-item as-btn" onClick={handleLogout}><span>Sign out</span><em>→</em></button>
                     </div>
                     <div className="fr-trainer"><div className="fr-trainer-head">Trainer</div><div className="fr-trainer-row"><span>Name</span><b>{myName}</b></div><div className="fr-trainer-row"><span>Level</span><b>{(me as any)?.player?.level ?? 1}</b></div><div className="fr-trainer-row"><span>XP</span><b>{(me as any)?.player?.xp ?? 0} / {((me as any)?.player?.level ?? 1)*100}</b></div><div className="fr-trainer-row"><span>Position</span><b>{(me as any)?.presence ? `${Math.round((me as any).presence.x)}, ${Math.round((me as any).presence.y)}` : "—"}</b></div></div>
@@ -200,7 +277,7 @@ export default function App() {
               {showDojo && (
                 <div className="fr-feynman-overlay" onClick={() => setShowDojo(false)}>
                   <div className="fr-feynman-modal" onClick={e=>e.stopPropagation()}>
-                    <DojoInterior playerId={myId} onExit={()=>setShowDojo(false)} onLeveledUp={(lvl,xp)=>showToast(`Level up → Lv ${lvl}  +${xp} XP`)} />
+                    <DojoInterior playerId={myId} initialPhase={dojoInitialPhase} onExit={()=>setShowDojo(false)} onLeveledUp={(lvl,xp)=>showToast(`Level up → Lv ${lvl}  +${xp} XP`)} />
                   </div>
                 </div>
               )}
@@ -209,15 +286,19 @@ export default function App() {
           </div>
           <aside className="fr-side">
             <div className="fr-box dojo-box">
-              <div className="fr-box-title">Feynman Dojo — Village Center Building</div>
+              <div className="fr-box-title">{inDojoRoom ? "Dojo — You are inside" : "Feynman Dojo — Village Center Building"}</div>
               <div className="fr-dojo-card">
                 <div className="fr-dojo-icon">⛩</div>
                 <div className="fr-dojo-text">
-                  <b>Feynman Dojo</b>
-                  <span>Inside the big central building</span>
-                  <span>Walk to center + Enter at door</span>
+                  <b>{inDojoRoom ? "Training Hall" : "Feynman Dojo"}</b>
+                  <span>{inDojoRoom ? "Talk to Master Kairo inside" : "Inside the big central building"}</span>
+                  <span>{inDojoRoom ? "South door • Enter to exit" : "Walk to center + Enter at door"}</span>
                 </div>
-                <button className={`fr-dojo-enter ${hasActiveLoop ? "pulse" : ""}`} onClick={()=>setShowDojo(true)}>{hasActiveLoop ? "Resume" : "Enter"}</button>
+                {!inDojoRoom ? (
+                  <button className={`fr-dojo-enter ${hasActiveLoop ? "pulse" : ""}`} onClick={()=>setInDojoRoom(true)}>{hasActiveLoop ? "Resume" : "Enter"}</button>
+                ) : (
+                  <button className="fr-dojo-enter" onClick={handleExitDojo}>Exit</button>
+                )}
               </div>
               <div className="fr-dojo-stats">
                 <span>Lv {(me as any)?.player?.level ?? 1}</span>
@@ -231,41 +312,60 @@ export default function App() {
               <div className="fr-box-list">{!online ? <span className="fr-muted">Loading…</span> : online.map((o:any)=>(<div key={o.player._id} className={`fr-row ${o.player._id===myId?"me":""}`}><i style={{ background: o.player.color }} /><span className="fr-row-name">{o.player.name}</span><em>Lv{o.player.level}</em><span className="fr-row-dot">●</span></div>))}</div>
             </div>
             <div className="fr-box">
-              <div className="fr-box-title">Live Map <span className="fr-box-count">Realtime</span></div>
+              <div className="fr-box-title">Live Map <span className="fr-box-count">{inDojoRoom ? "Dojo" : "Realtime"}</span></div>
               <div className="fr-minimap-wrap">
-                <div className="fr-minimap">
-                  {/* faint grid */}
-                  <div className="fr-minimap-grid" />
-                  {/* Dojo building */}
-                  <div className="fr-minimap-dojo" title="Dojo - Central Building" />
-                  {/* NPCs */}
-                  {npcs?.map((n:any)=>(
-                    <div
-                      key={n._id}
-                      className={`fr-minimap-dot npc ${activeNpcId===n._id ? "active" : ""}`}
-                      style={{ left: `${(n.x/1280*100).toFixed(2)}%`, top: `${(n.y/1280*100).toFixed(2)}%`, background: n.color }}
-                      title={n.name}
-                    />
-                  ))}
-                  {/* Other players */}
-                  {online?.map((o:any)=>(
-                    <div
-                      key={o.player._id}
-                      className={`fr-minimap-dot player ${o.player._id===myId ? "me" : ""}`}
-                      style={{ left: `${(o.presence.x/1280*100).toFixed(2)}%`, top: `${(o.presence.y/1280*100).toFixed(2)}%`, background: o.player.color, borderColor: o.player._id===myId ? "#1c1917" : "#fff" }}
-                      title={`${o.player.name} Lv${o.player.level}`}
-                    />
-                  ))}
-                  {/* my position if not in online (fallback) */}
-                  {me && (me as any)?.presence && !online?.some((o:any)=>o.player._id===myId) && (
-                    <div className="fr-minimap-dot player me" style={{ left: `${((me as any).presence.x/1280*100).toFixed(2)}%`, top: `${((me as any).presence.y/1280*100).toFixed(2)}%`, background: (me as any).player.color }} />
-                  )}
-                </div>
+                {!inDojoRoom ? (
+                  <div className="fr-minimap">
+                    <div className="fr-minimap-grid" />
+                    <div className="fr-minimap-dojo" title="Dojo - Central Building" />
+                    {npcs?.map((n:any)=>(
+                      <div
+                        key={n._id}
+                        className={`fr-minimap-dot npc ${activeNpcId===n._id ? "active" : ""}`}
+                        style={{ left: `${(n.x/1280*100).toFixed(2)}%`, top: `${(n.y/1280*100).toFixed(2)}%`, background: n.color }}
+                        title={n.name}
+                      />
+                    ))}
+                    {online?.map((o:any)=>(
+                      <div
+                        key={o.player._id}
+                        className={`fr-minimap-dot player ${o.player._id===myId ? "me" : ""}`}
+                        style={{ left: `${(o.presence.x/1280*100).toFixed(2)}%`, top: `${(o.presence.y/1280*100).toFixed(2)}%`, background: o.player.color, borderColor: o.player._id===myId ? "#1c1917" : "#fff" }}
+                        title={`${o.player.name} Lv${o.player.level}`}
+                      />
+                    ))}
+                    {me && (me as any)?.presence && !online?.some((o:any)=>o.player._id===myId) && (
+                      <div className="fr-minimap-dot player me" style={{ left: `${((me as any).presence.x/1280*100).toFixed(2)}%`, top: `${((me as any).presence.y/1280*100).toFixed(2)}%`, background: (me as any).player.color }} />
+                    )}
+                  </div>
+                ) : (
+                  <div className="fr-minimap" style={{height:148, background:"#000"}}>
+                    <div className="fr-minimap-grid" style={{opacity:0.6}} />
+                    {/* Dojo interior minimap — schematic */}
+                    <div title="Sensei" style={{position:"absolute", left:"50%", top:"22%", width:14, height:14, background:"#FF6B35", border:"2px solid #000", borderRadius:"50%", transform:"translate(-50%,-50%)", boxShadow:"0 0 0 3px rgba(255,107,53,0.18)"}} />
+                    <div title="Rin" style={{position:"absolute", left:"25%", top:"42%", width:11, height:11, background:"#10b981", border:"2px solid #000", borderRadius:"50%", transform:"translate(-50%,-50%)"}} />
+                    <div title="Nova" style={{position:"absolute", left:"75%", top:"42%", width:11, height:11, background:"#8b5cf6", border:"2px solid #000", borderRadius:"50%", transform:"translate(-50%,-50%)"}} />
+                    <div title="Kai" style={{position:"absolute", left:"36%", top:"64%", width:11, height:11, background:"#ef4444", border:"2px solid #000", borderRadius:"50%", transform:"translate(-50%,-50%)"}} />
+                    <div title="You" style={{position:"absolute", left:"50%", top:"82%", width:12, height:12, background: (me as any)?.player?.color ?? "#1c1917", border:"2px solid #FF6B35", borderRadius:"50%", transform:"translate(-50%,-50%)", boxShadow:"0 0 0 3px rgba(255,107,53,0.18)"}} />
+                    <div title="Exit" style={{position:"absolute", left:"50%", top:"92%", width:"28%", height:10, background:"#fffbeb", border:"1px solid #f59e0b", borderRadius:4, transform:"translate(-50%,-50%)", opacity:0.9, display:"grid", placeItems:"center", fontSize:7, fontFamily:"JetBrains Mono, monospace", color:"#1c1917"}}>EXIT</div>
+                  </div>
+                )}
                 <div className="fr-minimap-legend">
-                  <span><i style={{background:"#1c1917"}} /> You</span>
-                  <span><i style={{background:"#f59e0b"}} /> NPC</span>
-                  <span><i style={{background:"#e9ddd0", border:"1px solid #1c1917"}} /> Dojo</span>
-                  <span className="fr-minimap-hint">Live • {online?.length ?? 0} trainers move in real-time</span>
+                  {!inDojoRoom ? (
+                    <>
+                      <span><i style={{background:"#1c1917"}} /> You</span>
+                      <span><i style={{background:"#f59e0b"}} /> NPC</span>
+                      <span><i style={{background:"#e9ddd0", border:"1px solid #1c1917"}} /> Dojo</span>
+                      <span className="fr-minimap-hint">Live • {online?.length ?? 0} trainers</span>
+                    </>
+                  ) : (
+                    <>
+                      <span><i style={{background:"#FF6B35"}} /> Sensei</span>
+                      <span><i style={{background:"#10b981"}} /> NPCs</span>
+                      <span><i style={{background:"#1c1917", border:"2px solid #FF6B35"}} /> You</span>
+                      <span className="fr-minimap-hint">Dojo hall • 4 NPCs</span>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
