@@ -634,19 +634,7 @@ export class OverworldScene extends Phaser.Scene {
     // subtle outline for HD crisp
     sprite.setOrigin(0.5, 0.85);
 
-    // HD nameplate - white with Inter, distinct per role
-    const nw = Math.max(70, n.name.length * 6.5 + 20);
-    const plateShadow = this.add.rectangle(0, -36.5, nw, 16, 0x1c1917, 0.10);
-    const plate = this.add.rectangle(0, -38, nw, 16, 0xffffff, 0.96);
-    plate.setStrokeStyle(1, 0xe9ddd0, 0.9);
-    const label = this.add.text(0, -38, n.name, {
-      fontFamily: "'Inter', system-ui, sans-serif",
-      fontSize: "9.5px",
-      color: "#1c1917",
-      fontStyle: "600",
-    });
-    label.setOrigin(0.5);
-    label.setLetterSpacing(0.2);
+    // Nameplate removed — keep plaza clean (PlanetScale minimal)
     // role badge
     const roleText = this.add.text(0, -24, n.introLine ? n.introLine.slice(0, 18) + "…" : "", {
       fontFamily: "'Inter', sans-serif",
@@ -668,7 +656,7 @@ export class OverworldScene extends Phaser.Scene {
     this.tweens.add({ targets: ex, y: -22, duration: 650, yoyo: true, repeat: -1 });
     this.tweens.add({ targets: exBg, y: -22, duration: 650, yoyo: true, repeat: -1 });
 
-    c.add([mat, mat2, shadow2, shadow, sprite, plateShadow, plate, label, exBg, ex]);
+    c.add([mat, mat2, shadow2, shadow, sprite, exBg, ex]);
     c.setDepth(n.y + 25);
     const hit = this.add.rectangle(0, 0, 36, 36, 0x000000, 0);
     hit.setInteractive({ useHandCursor: true });

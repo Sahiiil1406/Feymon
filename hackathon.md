@@ -2,17 +2,17 @@
 
 - **Project:** Feymon
 - **Event:** Convex All Gas Hackathon
-- **What it does:** Open-world 2D learning game (Feynman × Pokémon FireRed) — live avatars, NPCs, realtime movement and world chat
-- **Live app:** not deployed
+- **What it does:** Feynman metaverse plaza — explain any topic to an AI sensei, get scored 1–10, and evolve your avatar unlocking characters, auras and regions; live 2D world with AI NPCs (new dialogue each interaction) and real meta avatars, realtime movement and voice
+- **Live app:** https://graceful-buzzard-759.convex.site
 - **Repo:** https://github.com/Sahiiil1406/Aevora
-- **Frontend:** not deployed
-- **Convex deployment:** https://watchful-bat-395.convex.cloud
-- **Components:** none
+- **Frontend:** Convex static hosting
+- **Convex deployment:** https://graceful-buzzard-759.convex.cloud
+- **Components:** @convex-dev/static-hosting
 - **Convex features:** schema, tables, indexes, queries, mutations, actions, crons, realtime queries
 - **Auth:** none
 - **AI models:** gpt-4o-mini, gemini-1.5-flash
 - **Started:** 2026-08-26T15:44:36Z
-- **Last updated:** 2026-09-10T00:15:00Z
+- **Last updated:** 2026-09-12T03:15:00Z
 
 ## Log
 
@@ -36,3 +36,8 @@ Added Feynman AI loop with LLM layer and voice interior: extended `convex/schema
 
 ### 2026-09-10 - working tree
 Revamped UI to warm Mobbin minimal and made Dojo fit one screen, then upgraded 2-D world to HD 1080p and reused existing building as Dojo: replaced FireRed pixel UI (`Press Start 2P`, `4px #000`) with `Inter`/`#f7f3ec` `#fdfbf7`, `1px #e9ddd0`, `12-24px` radius, fixed `fr-feynman-overlay` to `fixed` viewport and compacted `DojoInterior` (`110px` room, `12px` lobby) and `FeynmanLoop` to fit `86dvh` (`src/App.tsx`, `src/index.css`, `src/components/DojoInterior.tsx`, `src/components/FeynmanLoop.tsx`); upgraded `PhaserGame` to `1280x720` `antialiasGL` `1.35` zoom (was `480x270` `0.68`) for 7× pixels, generated 2× HD assets via PIL `nearest` (`public/assets/tilesets/tuxmon-sample-32px-extruded-hd.png` `1632x2040`, `players-hd.png` `966x494`, `atlas-hd.png` `392x172`, `roguelike-hd.png`), mapped 6 NPCs to distinct `players.png` bases (`professor`/`girl1`/`knight`/`omnichannelfemale`/`red`/`nurse` via `NPC_SPRITE_MAP`) with `0.92 HD` scale (was `0.58`) and `HD` tower overlay with vignette/lanterns, added `Pastoral` CC0 tileset download (`public/assets/tilesets/pastoral-hd.png`); reused big central building `town-center-middle` `448,480 224x96` as Dojo at `560,528` door `560,582` (removed floating tower, kept tilemap collides) and enlarged NPCs to `0.92` and players to `0.70 HD`, added realtime minimap (`src/App.tsx` `fr-minimap` 180px with `1280` % mapping and `0.18s` transitions), and fixed Enter/NPC/Dojo interaction (`updateNearby` `64→72`, `scrollFactor` world, `window keydown` fallback, removed manual tower block). Verified `npx tsc --noEmit` and `npm run build` clean. Convex features: schema, tables, indexes, queries, mutations, actions, crons, realtime queries (`src/game/scenes/OverworldScene.ts`, `src/components/PhaserGame.tsx`, `src/App.tsx`).
+### 2026-09-10 - working tree
+Deployed to production on Convex static hosting: `npx convex deploy --yes` + `@convex-dev/static-hosting` (`convex/convex.config.ts` `app.use(staticHosting)` + `@convex-dev/static-hosting deploy` → `https://graceful-buzzard-759.convex.site`), set prod env `LLM_PROVIDER=gemini` `GEMINI_API_KEY` `GEMINI_MODEL=gemini-1.5-flash`, seeded prod `topics 5` `npcs 6`, built `dist` `419` files with `VITE_CONVEX_URL=https://graceful-buzzard-759.convex.cloud`. Verified `200` on `convex.site` and `tsc` clean. Convex features: schema, tables, indexes, queries, mutations, actions, crons, realtime queries, static hosting (`convex/convex.config.ts`, `convex/http.ts` via component, `dist/index.html`).
+
+### 2026-09-12 - working tree
+Revamped to orange/black Supabase-inspired theme and added story-driven landing with concise pitch: rebuilt `src/components/LandingPage.tsx` (PlanetScale black `#000`/`#0a0a0a` `#1a1a1a` lime→orange `#FF6B35`/`rgba(255,107,53`, ascii `plaza.map` 2-D world with beats `① Arrive ② Explain → 7.2 ③ Evolve +skin+aura+region`, mini evo SVG, unlock strip `Desert Outpost`, alive cards for AI NPCs with new dialogue each interaction and live meta avatars with typing dots), simplified copy 60% and removed hero logos; cleaned game plaza `src/App.tsx` (removed Town people `fr-box` + How to play `fr-box.soft`, removed `Reuse of existing building…` hint, hid NPC nameplates `src/game/scenes/OverworldScene.ts` `plate/label`, tightened `fr-landscape 14px/320px` + `fr-side 12px` + dojo `32px`/`148px` minimap), revamped Dojo `src/components/DojoInterior.tsx` to smooth unique split (68% ring `conic-gradient`, vertical `tl-step` timeline, avatar card with bar + unlocks, `dojoIn 0.45s` + `pulse`) and Loop `src/components/FeynmanLoop.tsx` with `flFade`/`turnIn` + hover lift + top lime hairline, and switched global `src/index.css` to orange `#FF6B35` selection + `phaser-wrap--hd` `#1a1a1a`. Added `showLanding` gate in `src/App.tsx` (`LandingPage onStart → AccountGate → plaza`) and transformed `Live Map` legend to orange. Verified `npx tsc --noEmit` and `vite build` clean. Convex features: schema, tables, indexes, queries, mutations, actions, crons, realtime queries (`src/components/LandingPage.tsx`, `src/App.tsx`, `src/components/DojoInterior.tsx`, `src/components/FeynmanLoop.tsx`, `src/game/scenes/OverworldScene.ts`).

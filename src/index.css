@@ -1,10 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body {
-  background: #f7f3ec;
-  color: #1c1917;
+  background: #000000;
+  color: #ededed;
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-size: 14px;
   line-height: 1.5;
@@ -12,19 +12,21 @@ body {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
-#root { min-height: 100dvh; display: flex; flex-direction: column; }
+#root { min-height: 100dvh; display: flex; flex-direction: column; background:#000; }
 a { color: inherit; text-decoration: none; }
 button { font-family: inherit; }
 input, select, textarea { font-family: inherit; }
 
-/* HD 1080p crisp pixel - supersampled 2x for retina */
+::selection { background: #FF6B35; color: #000; }
+
+/* HD 1080p crisp pixel */
 .phaser-wrap canvas {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
 .phaser-wrap--hd {
-  box-shadow: 0 1px 2px rgba(28,25,23,0.04), 0 8px 32px rgba(28,25,23,0.08);
-  border: 1px solid #e9ddd0;
+  box-shadow: 0 0 0 1px #1a1a1a, 0 16px 48px rgba(0,0,0,0.6);
+  border: 1px solid #1a1a1a;
 }
 .phaser-wrap--hd canvas {
   image-rendering: -webkit-optimize-contrast;
@@ -32,7 +34,8 @@ input, select, textarea { font-family: inherit; }
   image-rendering: pixelated;
 }
 
-/* Subtle scrollbar - warm theme */
+/* PlanetScale scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-thumb { background: #d6c7b8; border-radius: 999px; }
-::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #262626; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #333; }
+::-webkit-scrollbar-track { background: #000; }
