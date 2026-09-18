@@ -133,6 +133,193 @@ function mockRating(topic: string, explanations: string[]): {
   };
 }
 
+// ============================================================
+// NPC dynamic dialogue — 2-3 fallbacks per NPC + LLM variation
+// Every interaction yields a fresh line; on LLM failure a random
+// fallback is returned so the game never blocks.
+// ============================================================
+
+export const OVERWORLD_NPC_FALLBACKS: Record<string, string[]> = {
+  "Prof. Oak": [
+    "Ah! A new trainer! Want to try the Feynman trial? Explain PHOTOSYNTHESIS to me like I'm 10!",
+    "Welcome back! Ready to photosynthesize your knowledge? Teach me how plants cook with sunlight!",
+    "Plants are green chefs — can you explain their recipe without jargon?",
+  ],
+  "Curious Maya": [
+    "I know loops... but recursion sounds like magic? Can you teach me?",
+    "If a function calls itself, how does it ever stop? Explain the base case like I'm 11!",
+    "My brother said recursion is mirrors in mirrors — is that right?",
+  ],
+  "Rival Kai": [
+    "Heh, bet you can't explain Supply & Demand with Pokemon cards. Try me!",
+    "Economics is just battles — rare cards vs many trainers. Break it down, if you can!",
+    "I mastered the market. Prove you understand price vs demand!",
+  ],
+  "Stargazer Nova": [
+    "The stars hide a secret... why does even light get trapped? Tell me, traveler.",
+    "Imagine a trampoline so deep even marbles of light can't roll out — explain that!",
+    "What would you see at the edge of an abyss? Teach me black holes simply.",
+  ],
+  "Coder Lin": [
+    "Yo! Neural nets are just stacked guessers. Prove you can explain it simply?",
+    "Layers of tiny decision-makers — how would you teach that to a newbie?",
+    "Input → hidden → output — make that click without buzzwords!",
+  ],
+  "Nurse Joy": [
+    "Welcome to Feymon Center! Heal up, then explore town to find the others!",
+    "Need a breather? The Dojo's center awaits — that's where you level up!",
+    "Everyone starts as Lv1 — find the masters in the village to learn!",
+  ],
+};
+
+export const DOJO_NPC_FALLBACKS: Record<string, string[]> = {
+  "dojo-sensei": [
+    "Welcome, seeker. You have entered the heart of the dojo. Speak your topic simply — I will counter, you will clarify. Ready to evolve?",
+    "Clarity is form. Teach me as you would a child, and your avatar shall reflect your understanding.",
+    "Each explanation is a strike. Each counter, a parry. Step forward?",
+  ],
+  "dojo-assist": [
+    "I help find the gaps in simple explanations. The master will test your analogies — I note where you hide jargon.",
+    "Jargon hides not knowing. I'll listen for the word you skip.",
+    "Simplify till a kid nods — that's my cue.",
+  ],
+  "dojo-scholar": [
+    "Every idea has a hidden assumption. I will ask the question you didn't expect...",
+    "What if your analogy is wrong? That's where learning lives.",
+    "I'll be your friendly contradiction — ready?",
+  ],
+  "dojo-rival": [
+    "Heh, think you can teach it cold? The sensei gives you a score 1–10. Try to beat my 8.4 on Recursion!",
+    "I got 8.4 by nailing my analogy. What's yours?",
+    "Don't memorize — embody. Let's see your score!",
+  ],
+};
+
+function pickFallback(
+  key: string,
+  isDojo: boolean,
+  playerName?: string,
+  playerLevel?: number,
+): string {
+  const map = isDojo ? DOJO_NPC_FALLBACKS : OVERWORLD_NPC_FALLBACKS;
+  const arr = map[key] ?? (isDojo ? DOJO_NPC_FALLBACKS["dojo-sensei"]! : OVERWORLD_NPC_FALLBACKS["Prof. Oak"]!);
+  let base = arr[Math.floor(Math.random() * arr.length)]!;
+  // Light personalization 35% of the time so fallbacks still feel fresh
+  if (playerName && Math.random() > 0.65) {
+    const safeName = playerName.slice(0, 16);
+    if (base.includes("traveler") || base.includes("trainer") || base.includes("seeker")) {
+      base = base.replace(/traveler|trainer|seeker/g, safeName);
+    } else if (!base.includes(safeName) && base.length < 120) {
+      base = `${safeName}, ` + base.charAt(0).toLowerCase() + base.slice(1);
+    }
+  }
+  if (playerLevel && playerLevel > 1 && Math.random() > 0.7 && !base.includes("Lv")) {
+    base = base.replace(/Ready to/, `Lv${playerLevel} — ready to`);
+  }
+  return base;
+}
+
+export async function generateNpcDialogueLLM(args: {
+  npcName: string;
+  role: string;
+  personality: string;
+  topicTitle?: string;
+  topicPrompt?: string;
+  playerName?: string;
+  playerLevel?: number;
+  isDojo?: boolean;
+  dojoNpcId?: string;
+}): Promise<string> {
+  const fallbackKey = args.isDojo && args.dojoNpcId ? args.dojoNpcId : args.npcName;
+  const fallback = () => pickFallback(fallbackKey, !!args.isDojo, args.playerName, args.playerLevel);
+
+  const prov = getProvider();
+  if (prov === "mock") {
+    // Mock still varies: rotate fallback + occasionally inject player level
+    return fallback();
+  }
+
+  // Build system + prompt tailored to personality
+  const nonce = Math.random().toString(36).slice(2, 7);
+  const topicBlock = args.topicTitle
+    ? `Topic specialty: "${args.topicTitle}" — ${args.topicPrompt ?? ""}`.trim()
+    : `You are a dojo guide, not tied to a single topic. Encourage Feynman teaching in general.`;
+
+  const systemBase =
+    `You are ${args.npcName}, a ${args.role}. Personality: ${args.personality}. ` +
+    `You live in Feymon Village, a warm Pokemon-inspired learning plaza. ` +
+    `Speak in character, 1-2 sentences, max 42 words. Be warm, curious, and invite the player to explain simply (Feynman technique: analogy for a 10-year-old, no jargon). ` +
+    `Never be rude. Vary phrasing — avoid repeating past lines verbatim. Provide ONLY the dialogue line, no quotes, no stage directions.`;
+
+  const playerBlock = args.playerName
+    ? `Player: ${args.playerName} (Lv${args.playerLevel ?? 1}). Variation seed: ${nonce}. Make it feel personal and fresh.`
+    : `Variation seed: ${nonce}. Make this greeting feel fresh and unrepeated.`;
+
+  const prompt =
+    `${topicBlock}\n` +
+    `${playerBlock}\n` +
+    `Generate the greeting now — one fresh intro line that tees up the Feynman challenge:`;
+
+  try {
+    const { text } = await callLLM(prompt, systemBase);
+    let out = text.trim().replace(/^["“']+|["”']+$/g, "").trim();
+    // Strip any echoed role prefix like "Prof. Oak:" 
+    out = out.replace(/^[^:]{1,30}:\s*/, "");
+    // Keep to 1-2 sentences / ~180 chars
+    if (out.length > 220) {
+      const sentences = out.split(/(?<=[.!?])\s+/);
+      out = sentences.slice(0, 2).join(" ");
+      if (out.length > 220) out = out.slice(0, 217) + "...";
+    }
+    if (!out) return fallback();
+    // Ensure it ends with punctuation
+    if (!/[.!?]$/.test(out)) out += "!";
+    return out;
+  } catch (e) {
+    console.warn("LLM NPC dialogue failed, falling back", fallbackKey, e);
+    return fallback();
+  }
+}
+
+export async function generateDojoDialogueLLM(args: {
+  dojoNpcId: string;
+  playerName?: string;
+  playerLevel?: number;
+}): Promise<string> {
+  const defs: Record<string, { name: string; role: string; personality: string }> = {
+    "dojo-sensei": {
+      name: "Master Kairo",
+      role: "AI Sensei • Dojo Master",
+      personality: "Wise, warm, disciplined, speaks in short poetic lines, loves clarity over cleverness",
+    },
+    "dojo-assist": {
+      name: "Acolyte Rin",
+      role: "Gap Finder",
+      personality: "Observant, gentle, points out jargon and hidden complexity",
+    },
+    "dojo-scholar": {
+      name: "Scholar Nova",
+      role: "Socratic Scholar",
+      personality: "Inquisitive, loves hidden assumptions and 'what if' twists",
+    },
+    "dojo-rival": {
+      name: "Rival Kai",
+      role: "Rival • Score Chaser",
+      personality: "Competitive, playful, brags about 8.4 but respects good teaching",
+    },
+  };
+  const d = defs[args.dojoNpcId] ?? defs["dojo-sensei"]!;
+  return generateNpcDialogueLLM({
+    npcName: d.name,
+    role: d.role,
+    personality: d.personality,
+    isDojo: true,
+    dojoNpcId: args.dojoNpcId,
+    playerName: args.playerName,
+    playerLevel: args.playerLevel,
+  });
+}
+
 // Public unified entry — used internally and exposed as action
 export async function callLLM(prompt: string, system?: string): Promise<{ text: string; provider: Provider }> {
   const prov = getProvider();
@@ -287,5 +474,48 @@ export const health = action({
       geminiModel: getGeminiModel(),
       mock: prov === "mock",
     };
+  },
+});
+
+// ---- NPC dynamic dialogue actions (every talk is LLM-fresh, 2-3 fallbacks each) ----
+
+export const generateNpcDialogue = action({
+  args: {
+    npcName: v.string(),
+    role: v.optional(v.string()),
+    personality: v.optional(v.string()),
+    topicTitle: v.optional(v.string()),
+    topicPrompt: v.optional(v.string()),
+    playerName: v.optional(v.string()),
+    playerLevel: v.optional(v.number()),
+  },
+  handler: async (_ctx, args) => {
+    const dialogue = await generateNpcDialogueLLM({
+      npcName: args.npcName,
+      role: args.role ?? "Village NPC",
+      personality: args.personality ?? "Warm and curious",
+      topicTitle: args.topicTitle,
+      topicPrompt: args.topicPrompt,
+      playerName: args.playerName,
+      playerLevel: args.playerLevel,
+      isDojo: false,
+    });
+    return { dialogue, provider: getProvider() };
+  },
+});
+
+export const generateDojoDialogue = action({
+  args: {
+    dojoNpcId: v.string(),
+    playerName: v.optional(v.string()),
+    playerLevel: v.optional(v.number()),
+  },
+  handler: async (_ctx, args) => {
+    const dialogue = await generateDojoDialogueLLM({
+      dojoNpcId: args.dojoNpcId,
+      playerName: args.playerName,
+      playerLevel: args.playerLevel,
+    });
+    return { dialogue, provider: getProvider() };
   },
 });

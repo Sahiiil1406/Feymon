@@ -75,10 +75,12 @@ export default function LandingPage({ onStart }: { onStart: () => void }) {
               </div>
 
               <h1 className="lp-title reveal">
-                <span>Learn by</span>
-                <span className="grad">explaining.</span>
-                <span>Evolve your</span>
-                <span className="grad">avatar.</span>
+                <span>
+                  Learn by <span className="grad">explaining.</span>
+                </span>
+                <span>
+                  Evolve your <span className="grad">avatar.</span>
+                </span>
               </h1>
 
               <p className="lp-sub reveal">
@@ -120,20 +122,22 @@ export default function LandingPage({ onStart }: { onStart: () => void }) {
 
                 <div className="lp-ascii-body">
                   <div className="lp-ascii-map">
-                    <pre className="lp-ascii-pre" aria-hidden>{`┌────────────────────────────────────────────────────────┐
-│ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │
-│ ░  ┌──────────┐      ░░░░       ┌──────────┐  ░░░░░ │
-│ ░  │  HOUSE   │      ░░░░       │  HOUSE   │  ░░░░░ │
-│ ░  └────┬─────┘      ░░░░       └────┬─────┘  ░░░░░ │
-│ ░░░░░░░░│     ┌────────────────┐      │  ░░░░░░░░░░ │
-│ ░  ◐ NPC│     │  PATH   · · ·  │      │  ◎ YOU      │
-│ ░  “new?”│     │                │      │  Lv7 ──►     │
-│ ░       │     │   ⛩  DOJO      │      │  ⬢ Lv8  ✦   │
-│ ░░░░░░░░│     └───┬────────────┘      │  ░░░░░░░░░░ │
-│ ░░░░░░░░│         │  ░░░░░░░          │  ░░░░░░░░░░ │
-│ ░  ▓▓ Desert Outpost  ░░░  ░░░  →  ░░  ✦ UNLOCKED ░░ │
-│ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │
-└────────────────────────────────────────────────────────┘`}</pre>
+                    <pre className="lp-ascii-pre" aria-hidden>{`┌──────────────────────────────────────────────────────────┐
+│                                                          │
+│       ┌──────────┐                    ┌──────────┐       │
+│       │  HOUSE   │                    │  HOUSE   │       │
+│       └────┬─────┘      ░░░░░░        └────┬─────┘       │
+│            │       ┌──────────────┐        │             │
+│       ◐ NPC│       │   ⛩  DOJO   │        │ ◎ YOU        │
+│      “ask me”     │  explain ─►  │      │ Lv7 ──► ⬢ Lv8 ✦│
+│            │       │   evolve     │        │             │
+│            │       └──────┬───────┘        │             │
+│            └──────────────┼───────────────┘              │
+│                      ░░░░░│░░░░░                         │
+│       ▓▓ Desert Outpost  ─┴─  · · ·  ✦ UNLOCKS AT Lv8    │
+│                                                          │
+│        plaza ──► dojo ──► score ──► evolve ──► exhibit   │
+└──────────────────────────────────────────────────────────┘`}</pre>
                     <div className="lp-ascii-beats">
                       <span className="beat b1">
                         <i>①</i> Arrive <em>Lv1</em>
@@ -552,9 +556,9 @@ const styles = `
 .lp-badge{ display:inline-flex; align-items:center; gap:8px; padding:6px 12px; background:#0a0a0a; border:1px solid var(--line); border-radius:999px; font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); font-family:'JetBrains Mono',monospace; }
 .lp-badge-dot{ width:6px; height:6px; background:var(--lime); border-radius:50%; box-shadow:0 0 0 4px rgba(255,107,53,0.12); animation:pulse 1.6s ease-in-out infinite; }
 @keyframes pulse{ 0%,100%{ box-shadow:0 0 0 4px rgba(255,107,53,0.12);} 50%{ box-shadow:0 0 0 7px rgba(255,107,53,0.06);} }
-.lp-title{ margin:0; font-size: clamp(34px, 6vw, 62px); line-height:0.92; letter-spacing:-0.05em; font-weight:800; color:#fff; }
-.lp-title span{ display:block; }
-.lp-title .grad{ color:var(--lime); }
+.lp-title{ margin:0; font-size: clamp(34px, 6vw, 62px); line-height:0.92; letter-spacing:-0.05em; font-weight:800; color:#fff; text-wrap:balance; }
+.lp-title > span{ display:block; }
+.lp-title .grad{ color:var(--lime); display:inline; }
 .lp-sub{ margin:0; max-width:640px; font-size:15px; line-height:1.6; color:var(--muted); }
 .lp-sub b{ color:#fff; font-weight:600; }
 .lp-hero-actions{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:4px; }
@@ -579,9 +583,12 @@ const styles = `
 .lp-ascii-live{ margin-left:auto; display:inline-flex; gap:6px; align-items:center; padding:3px 8px; background:rgba(255,107,53,0.08); border:1px solid rgba(255,107,53,0.14); border-radius:999px; color:var(--lime); font-weight:700; font-size:10px; }
 .lp-ascii-live i{ width:6px; height:6px; background:var(--lime); border-radius:50%; box-shadow:0 0 0 4px rgba(255,107,53,0.12); animation:pulse 1.6s ease-in-out infinite; }
 .lp-ascii-body{ padding:12px; display:grid; gap:12px; background:linear-gradient(180deg, #0a0a0a, #000); }
-.lp-ascii-map{ position:relative; background:#000; border:1px solid var(--line); border-radius:10px; overflow:hidden; padding:10px; display:grid; gap:10px; }
-.lp-ascii-pre{ margin:0; padding:0; font-family:'JetBrains Mono', monospace; font-size:10.5px; line-height:1.35; color:#a1a1a1; background:transparent; white-space:pre; overflow-x:auto; text-align:center; letter-spacing:0; }
+.lp-ascii-map{ position:relative; background:radial-gradient(600px 220px at 50% 0%, rgba(255,107,53,0.06), transparent 70%), #000; border:1px solid var(--line); border-radius:10px; overflow:hidden; padding:10px 10px 12px; display:grid; gap:10px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02); }
+.lp-ascii-pre{ margin:0; padding:6px 0 2px; font-family:'JetBrains Mono', monospace; font-size:11px; line-height:1.5; color:#e8e8e8; background:transparent; white-space:pre; overflow-x:auto; text-align:center; letter-spacing:0.015em; font-variant-ligatures:none; text-rendering:geometricPrecision; -webkit-font-smoothing:antialiased; filter: drop-shadow(0 0 10px rgba(255,107,53,0.05)); scrollbar-width:thin; scrollbar-color: var(--line) transparent; }
 .lp-ascii-pre::selection{ background:var(--lime); color:#000; }
+.lp-ascii-pre::-webkit-scrollbar{ height:6px; }
+.lp-ascii-pre::-webkit-scrollbar-thumb{ background:var(--line); border-radius:999px; }
+.lp-ascii-pre::-webkit-scrollbar-track{ background:transparent; }
 .lp-ascii-beats{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
 .lp-ascii-beats .beat{ display:inline-flex; gap:6px; align-items:center; padding:5px 9px; background:#0a0a0a; border:1px solid var(--line); border-radius:999px; font-size:11px; font-family:'JetBrains Mono',monospace; color:var(--muted); }
 .lp-ascii-beats .beat i{ width:16px; height:16px; display:grid; place-items:center; background:#000; border:1px solid var(--line); border-radius:999px; font-size:10px; font-style:normal; color:var(--muted); }
@@ -590,11 +597,11 @@ const styles = `
 .lp-ascii-avatars{ position:absolute; inset:0; pointer-events:none; }
 .lp-ascii-avatars .av{ position:absolute; padding:3px 6px; background:rgba(0,0,0,0.85); border:1px solid var(--line); border-radius:999px; font-size:10px; font-weight:700; font-family:'JetBrains Mono',monospace; color:#fff; display:inline-flex; gap:4px; align-items:center; backdrop-filter:blur(4px); }
 .lp-ascii-avatars .av em{ font-style:normal; font-size:9px; color:var(--muted); font-weight:500; }
-.lp-ascii-avatars .av.a1{ left:12%; top:44%; border-color:rgba(255,107,53,0.22); }
-.lp-ascii-avatars .av.a2{ left:52%; top:46%; background:var(--lime); color:#000; border-color:var(--lime); }
+.lp-ascii-avatars .av.a1{ left:10%; top:42%; border-color:rgba(255,107,53,0.22); }
+.lp-ascii-avatars .av.a2{ left:66%; top:44%; background:var(--lime); color:#000; border-color:var(--lime); box-shadow:0 2px 10px rgba(255,107,53,0.18); }
 .lp-ascii-avatars .av.a2 em{ color:rgba(0,0,0,0.6); }
-.lp-ascii-avatars .av.a3{ right:14%; top:48%; background:var(--lime); color:#000; border-color:var(--lime); animation: avPulse 1.8s ease-in-out infinite; }
-.lp-ascii-avatars .av.a4{ left:38%; top:18%; opacity:0.9; }
+.lp-ascii-avatars .av.a3{ right:9%; top:52%; background:var(--lime); color:#000; border-color:var(--lime); animation: avPulse 1.8s ease-in-out infinite; }
+.lp-ascii-avatars .av.a4{ left:36%; top:14%; opacity:0.9; }
 @keyframes avPulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(255,107,53,0.18);} 50%{ box-shadow:0 0 0 6px rgba(255,107,53,0.08);} }
 .lp-ascii-bubbles{ position:absolute; top:6px; right:8px; display:grid; gap:6px; max-width:42%; }
 .lp-ascii-bubbles .bubble{ padding:6px 8px; border-radius:8px; font-size:10px; line-height:1.3; font-family:'JetBrains Mono',monospace; border:1px solid var(--line); max-width:100%; }
@@ -768,6 +775,10 @@ const styles = `
   .lp-section{ padding:28px 14px; }
   .lp-cta-inner{ padding:20px 14px 14px; }
   .lp-footer{ flex-direction:column; text-align:center; }
+  .lp-ascii-pre{ font-size:8.5px; line-height:1.45; letter-spacing:0; }
+  .lp-ascii-map{ padding:6px; gap:8px; }
+  .lp-ascii-bubbles{ max-width:52%; top:4px; right:4px; }
+  .lp-ascii-avatars .av{ font-size:9px; padding:2px 5px; }
 }
 @media (prefers-reduced-motion: reduce){
   .lp-orb, .lp-float, .mp-dot{ animation:none !important; }

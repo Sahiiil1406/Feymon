@@ -1,11 +1,68 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import PhaserGame from "./components/PhaserGame";
 import DojoInterior from "./components/DojoInterior";
 import LandingPage from "./components/LandingPage";
 import { getStoredPlayer, setStoredPlayer, clearStoredPlayer } from "./lib/playerStorage";
+
+// Client-side fallbacks (mirror of convex/ai.ts) — used if LLM action fails entirely
+const OVERWORLD_CLIENT_FALLBACKS: Record<string, string[]> = {
+  "Prof. Oak": [
+    "Ah! A new trainer! Want to try the Feynman trial? Explain PHOTOSYNTHESIS to me like I'm 10!",
+    "Welcome back! Ready to photosynthesize your knowledge? Teach me how plants cook with sunlight!",
+    "Plants are green chefs — can you explain their recipe without jargon?",
+  ],
+  "Curious Maya": [
+    "I know loops... but recursion sounds like magic? Can you teach me?",
+    "If a function calls itself, how does it ever stop? Explain the base case like I'm 11!",
+    "My brother said recursion is mirrors in mirrors — is that right?",
+  ],
+  "Rival Kai": [
+    "Heh, bet you can't explain Supply & Demand with Pokemon cards. Try me!",
+    "Economics is just battles — rare cards vs many trainers. Break it down, if you can!",
+    "I mastered the market. Prove you understand price vs demand!",
+  ],
+  "Stargazer Nova": [
+    "The stars hide a secret... why does even light get trapped? Tell me, traveler.",
+    "Imagine a trampoline so deep even marbles of light can't roll out — explain that!",
+    "What would you see at the edge of an abyss? Teach me black holes simply.",
+  ],
+  "Coder Lin": [
+    "Yo! Neural nets are just stacked guessers. Prove you can explain it simply?",
+    "Layers of tiny decision-makers — how would you teach that to a newbie?",
+    "Input → hidden → output — make that click without buzzwords!",
+  ],
+  "Nurse Joy": [
+    "Welcome to Feymon Center! Heal up, then explore town to find the others!",
+    "Need a breather? The Dojo's center awaits — that's where you level up!",
+    "Everyone starts as Lv1 — find the masters in the village to learn!",
+  ],
+};
+
+const DOJO_CLIENT_FALLBACKS: Record<string, string[]> = {
+  "dojo-sensei": [
+    "Welcome, seeker. You have entered the heart of the dojo. Speak your topic simply — I will counter, you will clarify. Ready to evolve?",
+    "Clarity is form. Teach me as you would a child, and your avatar shall reflect your understanding.",
+    "Each explanation is a strike. Each counter, a parry. Step forward?",
+  ],
+  "dojo-assist": [
+    "I help find the gaps in simple explanations. The master will test your analogies — I note where you hide jargon.",
+    "Jargon hides not knowing. I'll listen for the word you skip.",
+    "Simplify till a kid nods — that's my cue.",
+  ],
+  "dojo-scholar": [
+    "Every idea has a hidden assumption. I will ask the question you didn't expect...",
+    "What if your analogy is wrong? That's where learning lives.",
+    "I'll be your friendly contradiction — ready?",
+  ],
+  "dojo-rival": [
+    "Heh, think you can teach it cold? The sensei gives you a score 1–10. Try to beat my 8.4 on Recursion!",
+    "I got 8.4 by nailing my analogy. What's yours?",
+    "Don't memorize — embody. Let's see your score!",
+  ],
+};
 
 const COLORS = ["#0ea5e9", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899"];
 const SPRITES = ["hero_blue", "hero_red", "hero_green", "hero_girl"];
@@ -83,6 +140,13 @@ export default function App() {
   const [dojoInitialPhase, setDojoInitialPhase] = useState<"lobby" | "training">("lobby");
   const [activeDojoNpcId, setActiveDojoNpcId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // Dynamic NPC dialogue (LLM, every talk fresh, 2-3 fallbacks)
+  const [npcDialogue, setNpcDialogue] = useState<string | null>(null);
+  const [npcDialogueLoading, setNpcDialogueLoading] = useState(false);
+  const [dojoDialogue, setDojoDialogue] = useState<string | null>(null);
+  const [dojoDialogueLoading, setDojoDialogueLoading] = useState(false);
+  const generateNpcDialogue = useAction(api.ai.generateNpcDialogue);
+  const generateDojoDialogue = useAction(api.ai.generateDojoDialogue);
   const playerIdConvex = myId as Id<"players"> | null;
   const me = useQuery(api.players.get, playerIdConvex ? { playerId: playerIdConvex } : "skip");
   const online = useQuery(api.players.listOnline, myId ? { mapId: "overworld" } : "skip") as any[] | undefined;
@@ -126,6 +190,81 @@ export default function App() {
   }, [myId, showDojo, inDojoRoom]);
   const activeNpc = useMemo(() => { if (!activeNpcId || !npcs) return null; return npcs.find((n: any) => n._id === activeNpcId) ?? null; }, [activeNpcId, npcs]);
   const latestChat = useMemo(() => { if (!messages || messages.length === 0) return null; return messages[0]; }, [messages]);
+
+  // Every talk is LLM-fresh: fetch dynamic line on open, fallback if LLM fails
+  useEffect(() => {
+    if (!activeNpc) {
+      setNpcDialogue(null);
+      setNpcDialogueLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setNpcDialogueLoading(true);
+    setNpcDialogue(null);
+    const p: any = me as any;
+    const lvl = p?.player?.level ?? 1;
+    const pName = p?.player?.name ?? myName ?? "Trainer";
+    const topic: any = topics?.find((t: any) => t._id === activeNpc.topicId);
+    generateNpcDialogue({
+      npcName: activeNpc.name,
+      role: activeNpc.role,
+      personality: activeNpc.personality,
+      topicTitle: topic?.title,
+      topicPrompt: topic?.prompt ?? topic?.description,
+      playerName: pName,
+      playerLevel: lvl,
+    })
+      .then((res: any) => {
+        if (!cancelled) setNpcDialogue(res.dialogue);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          const fb = OVERWORLD_CLIENT_FALLBACKS[activeNpc.name] ?? [
+            "Hey there! Explain something simply?",
+            "Can you teach me like I'm 10?",
+            "Show me what you know!",
+          ];
+          setNpcDialogue(fb[Math.floor(Math.random() * fb.length)]!);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setNpcDialogueLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeNpc, me, myName, topics, generateNpcDialogue]);
+
+  useEffect(() => {
+    if (!activeDojoNpcId) {
+      setDojoDialogue(null);
+      setDojoDialogueLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setDojoDialogueLoading(true);
+    setDojoDialogue(null);
+    const p: any = me as any;
+    const lvl = p?.player?.level ?? 1;
+    const pName = p?.player?.name ?? myName ?? "Trainer";
+    generateDojoDialogue({ dojoNpcId: activeDojoNpcId, playerName: pName, playerLevel: lvl })
+      .then((res: any) => {
+        if (!cancelled) setDojoDialogue(res.dialogue);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          const fb = DOJO_CLIENT_FALLBACKS[activeDojoNpcId] ?? ["Welcome, seeker. Ready to train?"];
+          setDojoDialogue(fb[Math.floor(Math.random() * fb.length)]!);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setDojoDialogueLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeDojoNpcId, me, myName, generateDojoDialogue]);
+
   const lastMoveRef = useRef<{x:number;y:number;dir:string}>({x:0,y:0,dir:"down"});
   const pendingRef = useRef(false);
   const doMove = useCallback((x: number, y: number, dir: "up"|"down"|"left"|"right") => {
@@ -225,9 +364,29 @@ export default function App() {
               <div className="fr-ctrl">{inDojoRoom ? "Inside Dojo: WASD • Enter: Talk / Exit ONLY at south door + Enter • Click NPCs to talk" : "Move: WASD / Arrows • Enter: Talk / Enter Dojo (big building) • Click door • F: Enter Dojo • M: Menu"}</div>
               {!inDojoRoom && activeNpc && (
                 <div className="fr-dialog">
-                  <div className="fr-dialog-head"><span className="fr-who">{activeNpc.name}</span><button className="fr-x" onClick={() => setActiveNpcId(null)} aria-label="Close">×</button></div>
-                  <div className="fr-dialog-body">“{activeNpc.introLine}”</div>
-                  <div className="fr-dialog-actions"><button className="fr-btn-sm" onClick={() => setActiveNpcId(null)}>Dismiss</button><button className="fr-btn-sm primary" onClick={() => { if(playerIdConvex) sendMsg({ authorId: playerIdConvex, body: `Hi ${activeNpc.name}!`, mapId:"overworld", channel:"nearby"});}}>Say hi</button></div>
+                  <div className="fr-dialog-head">
+                    <span className="fr-who">{activeNpc.name}</span>
+                    <span style={{ marginLeft: 8, fontSize: 10, padding: "3px 7px", borderRadius: 999, background: npcDialogueLoading ? "#111" : "rgba(255,107,53,0.08)", color: npcDialogueLoading ? "#666" : "#FF6B35", border: "1px solid #1a1a1a", fontFamily: "JetBrains Mono,monospace" }}>
+                      {npcDialogueLoading ? "◉ LLM • thinking…" : "✦ LLM • fresh every talk"}
+                    </span>
+                    <button className="fr-x" onClick={() => setActiveNpcId(null)} aria-label="Close">×</button>
+                  </div>
+                  <div className="fr-dialog-body">
+                    {npcDialogueLoading ? (
+                      <span style={{ opacity: 0.75 }}>◉ {activeNpc.name} is crafting a fresh challenge…</span>
+                    ) : (
+                      <>“{npcDialogue ?? activeNpc.introLine}”</>
+                    )}
+                  </div>
+                  <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap", fontSize: 10, fontFamily: "JetBrains Mono,monospace", color: "#666" }}>
+                    <span style={{ padding: "3px 7px", background: "#000", border: "1px solid #1a1a1a", borderRadius: 999 }}>2-3 fallbacks if LLM offline</span>
+                    <span style={{ padding: "3px 7px", background: "rgba(255,107,53,0.08)", border: "1px solid rgba(255,107,53,0.14)", borderRadius: 999, color: "#FF6B35" }}>Topic: {(topics?.find((t:any)=>t._id===activeNpc.topicId)?.title) ?? activeNpc.role}</span>
+                  </div>
+                  <div className="fr-dialog-actions">
+                    <button className="fr-btn-sm" onClick={() => setActiveNpcId(null)}>Dismiss</button>
+                    <button className="fr-btn-sm" onClick={() => { const cur = activeNpc; setActiveNpcId(null); setTimeout(()=> setActiveNpcId(cur._id), 40); }}>↻ New line</button>
+                    <button className="fr-btn-sm primary" onClick={() => { if(playerIdConvex) sendMsg({ authorId: playerIdConvex, body: `Hi ${activeNpc.name}!`, mapId:"overworld", channel:"nearby"});}}>Say hi</button>
+                  </div>
                 </div>
               )}
               {inDojoRoom && activeDojoNpcId && (() => {
@@ -239,12 +398,30 @@ export default function App() {
                 };
                 const d = map[activeDojoNpcId];
                 if (!d) return null;
+                const body = dojoDialogueLoading ? null : (dojoDialogue ?? d.intro);
                 return (
                   <div className="fr-dialog">
-                    <div className="fr-dialog-head"><span className="fr-who">{d.name}</span><button className="fr-x" onClick={() => setActiveDojoNpcId(null)} aria-label="Close">×</button></div>
-                    <div className="fr-dialog-body">“{d.intro}”</div>
+                    <div className="fr-dialog-head">
+                      <span className="fr-who">{d.name}</span>
+                      <span style={{ marginLeft: 8, fontSize: 10, padding: "3px 7px", borderRadius: 999, background: dojoDialogueLoading ? "#111" : "rgba(255,107,53,0.08)", color: dojoDialogueLoading ? "#666" : "#FF6B35", border: "1px solid #1a1a1a", fontFamily: "JetBrains Mono,monospace" }}>
+                        {dojoDialogueLoading ? "◉ LLM • thinking…" : "✦ LLM • fresh every talk"}
+                      </span>
+                      <button className="fr-x" onClick={() => setActiveDojoNpcId(null)} aria-label="Close">×</button>
+                    </div>
+                    <div className="fr-dialog-body">
+                      {dojoDialogueLoading ? (
+                        <span style={{ opacity: 0.75 }}>◉ {d.name} is crafting a fresh line…</span>
+                      ) : (
+                        <>“{body}”</>
+                      )}
+                    </div>
+                    <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap", fontSize: 10, fontFamily: "JetBrains Mono,monospace", color: "#666" }}>
+                      <span style={{ padding: "3px 7px", background: "#000", border: "1px solid #1a1a1a", borderRadius: 999 }}>2-3 fallbacks if LLM offline</span>
+                      <span style={{ padding: "3px 7px", background: "rgba(255,107,53,0.08)", border: "1px solid rgba(255,107,53,0.14)", borderRadius: 999, color: "#FF6B35" }}>{d.name} • Dojo</span>
+                    </div>
                     <div className="fr-dialog-actions">
                       <button className="fr-btn-sm" onClick={() => setActiveDojoNpcId(null)}>Dismiss</button>
+                      <button className="fr-btn-sm" onClick={() => { const cur = activeDojoNpcId; setActiveDojoNpcId(null); setTimeout(()=> setActiveDojoNpcId(cur), 40); }}>↻ New line</button>
                       {d.action === "train" ? (
                         <button className="fr-btn-sm primary" onClick={() => { setActiveDojoNpcId(null); handleTalkSensei(); }}>Start Training →</button>
                       ) : (
