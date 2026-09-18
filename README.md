@@ -36,13 +36,14 @@ The AI doesn’t just nod. It Socratically pokes holes, hunts jargon, and asks t
 ### The village flow
 
 ```
-plaza ──► dojo ──► score ──► evolve ──► exhibit
+plaza ──► dojo ──► score ──► evolve ──► share ──► exhibit
   │        │
   │        └─ 1. Pick topic (5 seeded + any custom, 120 chars max)
   │            2. Explain — “teach a 12-year-old, use an analogy” (type or hold SPEAK)
   │            3. AI asks a counter-question — you clarify, it parries again
   │            4. After 4 turns (configurable 2–8) → GET RATED → score + feedback + XP → level-up toast
-  │            5. History stays — see turns, strengths, weaknesses, past sessions
+  │            5. Share — result card shows “I scored 7.2 on Photosynthesis — try to beat me!” + live link → Copy / X / LinkedIn / native share
+  │            6. History stays — see turns, strengths, weaknesses, past sessions
   └─ Between: walk with WASD/Arrows, Enter to talk or enter/exit Dojo, click NPCs or doors, chat nearby/world, watch minimap
 ```
 
@@ -55,9 +56,12 @@ plaza ──► dojo ──► score ──► evolve ──► exhibit
    Every time you submit an explanation (typed or voice-transcribed), it’s saved as a user turn. The turn counter goes up. If you haven’t hit the max turns yet, the AI immediately generates the next Socratic counter-question — one sharp, 1–2 sentence “what if / why” that hunts the jargon or gap you just left. That question is saved as an ai_question turn and shown as the next prompt. Your input stays “generating…” for a beat, then the new question drops. If you’ve hit the max turns, the session flips to “ready to rate” instead.
 
 3. **Get rated — the payoff**  
-   The AI reads your entire loop — all your explanations and its questions — and returns structured JSON: a score 0–100 (shown as 1–10), 2–3 strengths, 2–3 weaknesses, 2–4 sentences of feedback, and XP. The app then applies XP with a level curve of `100 × level` (level 1 needs 100 XP, level 2 needs 200, etc.), updates your total explanations and rolling average score, marks the session completed, and logs a final feedback turn so you can scroll the whole story.
+   The AI reads your entire loop — all your explanations and its questions — and returns structured JSON: a score 0–100 (shown as 1–10), 2–3 strengths, 2–3 weaknesses, 2–4 sentences of feedback, and XP. The app then applies XP with a level curve of `100 × level` (level 1 needs 100 XP, level 2 needs 200, etc.), updates your total explanations and rolling average score, marks the session completed, and logs a final feedback turn so you can scroll the whole story. A shareable result card appears immediately with “I scored 7.2 on Photosynthesis — try to beat me!” + the live link + Copy / X / LinkedIn / native share + Grounded badge.
 
-4. **Between sessions — the world stays live**  
+4. **Share — the proof**  
+   One tap copies `“I scored 7.2 on Photosynthesis in Feymon — try to beat me! https://graceful-buzzard-759.convex.site”` or opens X/LinkedIn intent. It’s built for social proof — judges see you’ve shipped something shareable, friends can jump straight into the live plaza.
+
+5. **Between sessions — the world stays live**  
    You’re never kicked back to a form. You’re still in the plaza. You can click another NPC for a fresh challenge line, open the Dojo again with a new topic, or just wander and chat. Presence and messages are live — no refresh needed.
 
 ### Scoring rubric (what the AI judges)
@@ -99,10 +103,20 @@ Voice input is built directly on the browser’s Web Speech API. It first asks f
 
 **What it does for you:** You can talk instead of type — speak an analogy, see it appear live, then send. It’s faster for storytelling and feels like actually teaching.
 
+### Simple name-only auth
+Just a name. No password, no OAuth. The same name always yields the same sprite and color (hash-based), and the server reuses the same player document — so your level, XP and average score are restored on any device. Case-insensitive (“Ash” = “ash”), progression is tied 1:1 to name.
+
+**What it does for you:** You can return or switch devices, type the same name, and instantly be your same character with all progress intact.
+
 ### Progression
 Every rated session gives XP. The level curve is simple and transparent: `100 × level` to level up. You see a level-up toast, your avatar card shows a progress bar and unlocks (skins, auras, regions like Desert Outpost), and your past sessions keep strengths/weaknesses so you can track what improved. Your average score and total explanations persist.
 
 **What it does for you:** You see growth. A 7.2 today becomes an 8.4 next week because you fixed the exact weakness the sensei flagged.
+
+### Shareable result card
+After you get rated, a prominent card appears with your score rendered as `score/10` (e.g., 7.2 on Photosynthesis), the topic, and the live link. It’s designed for social proof: one line ready to copy — “I scored 7.2 on Photosynthesis in Feymon — try to beat me! https://graceful-buzzard-759.convex.site” — with buttons for Copy (clipboard + textarea fallback, shows “Copied!”), Share on X (opens `twitter.com/intent/tweet` with text + URL), LinkedIn (opens `linkedin.com/sharing/share-offsite`), and native share via `navigator.share` when available. The card also carries the Grounded badge (Firecrawl vs built-in) and a hint to tag `@convex @OpenAI @firecrawl`.
+
+**What it does for you:** You can brag and invite others in one tap. Judges see social proof without you writing a post from scratch, and friends can open the live plaza directly from your link.
 
 ### Static hosting
 Frontend and backend deploy together to a public `convex.site` URL. No separate Vercel/Netlify, no CORS, no env mismatch. One atomic publish serves the whole plaza.
@@ -131,7 +145,7 @@ Browser (React + Vite + Phaser)
   │         handles movement (WASD/Arrows/click), collisions,
   │         depth sorting, chat bubbles and minimap
   ├─ Dojo UI → topic picker, explanation input,
-  │            voice (speech → text), turn history, rating
+  │            voice (speech → text), turn history, rating → share card (Copy/X/LinkedIn + Grounded badge)
   └─ Speech → asks mic permission, shows live transcription
 
 Convex
@@ -151,6 +165,7 @@ External → OpenAI / Gemini for generation + Firecrawl for markdown → injecte
 1. You type or speak → the app saves your text as a user turn and bumps the turn counter.
 2. If not yet at max turns, it asks the AI layer to generate the next counter-question. The AI layer optionally asks Firecrawl for markdown about the topic, injects that as grounded context, then calls the LLM. The new question is saved and shown instantly.
 3. If at max turns, the app waits for you to hit GET RATED. The AI reads the full loop plus optional Firecrawl context and returns a score + feedback. Then the session is marked completed, XP is applied, and the level is updated — all live, so your avatar and history update without a refresh.
+4. Share — the result card renders with `score/10` + topic + live link + Grounded badge; one tap copies `“I scored 7.2 on Photosynthesis — try to beat me! https://graceful-buzzard-759.convex.site”` or shares to X/LinkedIn/native.
 
 **Realtime:** The frontend doesn’t poll. It subscribes to live queries for online players, messages, NPCs and the active session. When any player moves or any turn is added, every subscribed client updates automatically.
 

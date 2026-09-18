@@ -67,20 +67,36 @@ const DOJO_CLIENT_FALLBACKS: Record<string, string[]> = {
 const COLORS = ["#0ea5e9", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899"];
 const SPRITES = ["hero_blue", "hero_red", "hero_green", "hero_girl"];
 
+// Deterministic mapping — same name → same character (mirrors convex/players.ts)
+function hashName(name: string): number {
+  let h = 0;
+  const s = name.toLowerCase().trim();
+  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+function spriteForName(name: string): string {
+  return SPRITES[hashName(name) % SPRITES.length]!;
+}
+function colorForName(name: string): string {
+  return COLORS[hashName(name + "_color") % COLORS.length]!;
+}
+
 function AccountGate({ onCreated }: { onCreated: (id: string, name: string) => void }) {
   const [name, setName] = useState("");
-  const [color, setColor] = useState(COLORS[0]!);
-  const [sprite] = useState(SPRITES[Math.floor(Math.random() * SPRITES.length)]!);
   const create = useMutation(api.players.create);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const t = name.trim();
+  const previewColor = t.length >= 2 ? colorForName(t) : COLORS[0]!;
+  const previewSprite = t.length >= 2 ? spriteForName(t) : SPRITES[0]!;
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const t = name.trim();
     if (t.length < 2) { setErr("Name needs at least 2 characters"); return; }
     setLoading(true); setErr(null);
     try {
-      const id = await create({ name: t, color, sprite, mapId: "overworld" });
+      // Simple name-only auth — same name → same player → progression saved
+      // Sprite/color are deterministic on the server (spriteForName/colorForName), no picker needed
+      const id = await create({ name: t, mapId: "overworld" });
       setStoredPlayer({ playerId: id as string, name: t });
       onCreated(id as string, t);
     } catch (e: any) { setErr(e.message ?? "Failed"); } finally { setLoading(false); }
@@ -102,20 +118,25 @@ function AccountGate({ onCreated }: { onCreated: (id: string, name: string) => v
               <span>Professor Oak</span>
               <span className="fr-oak-tag">Guide</span>
             </div>
-            <p>“This world is inhabited by creatures called Feymon. Choose your name and color to begin your journey.”</p>
+            <p>“Choose a name — same name always gives you the same character and saves your level & XP. No password, just your name.”</p>
           </div>
           <div className="fr-gate-meta">
             <span>16×16 tiles • Grid movement • Realtime</span>
-            <span>Works in browser • No download</span>
+            <span>Simple name-only auth • Progress tied to name</span>
           </div>
         </div>
         <div className="fr-gate-right">
           <div className="fr-form-title">Create trainer</div>
-          <p className="fr-form-sub">Pick a display name and accent color. You can change it later.</p>
+          <p className="fr-form-sub">Just your name. Same name → same character, same progression.</p>
           <form onSubmit={submit} className="fr-form">
-            <label className="fr-field"><span>Name</span><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ash" maxLength={12} autoFocus /></label>
-            <div className="fr-field"><span>Accent</span>
-              <div className="fr-colors">{COLORS.map((c) => (<button key={c} type="button" onClick={() => setColor(c)} className={`fr-dot ${color === c ? "on" : ""}`} style={{ background: c }} aria-label={c} />))}</div>
+            <label className="fr-field"><span>Name</span><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ash" maxLength={20} autoFocus /></label>
+            <div className="fr-field"><span>Your character</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "#000", border: "1px solid #1a1a1a", borderRadius: 8 }}>
+                <span style={{ width: 22, height: 22, borderRadius: 999, background: previewColor, border: "2px solid #1a1a1a", display: "inline-block", flexShrink: 0 }} />
+                <span style={{ fontSize: 12, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", color: "#fff" }}>{previewSprite}</span>
+                <span style={{ fontSize: 11, color: "#8a8a8a", fontFamily: "'JetBrains Mono',monospace" }}>• {t ? `"${t}" → deterministic` : "type a name"}</span>
+              </div>
+              <span style={{ fontSize: 10, color: "#666", fontFamily: "'JetBrains Mono',monospace", marginTop: 4, display: "block" }}>Same name on any device → same sprite & color → level & XP restored.</span>
             </div>
             <button type="submit" disabled={loading} className="fr-btn">{loading ? "Creating…" : "Continue →"}</button>
             {err && <div className="fr-err">{err}</div>}

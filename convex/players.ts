@@ -10,8 +10,21 @@ const MAP_SPAWN: Record<string, { x: number; y: number }> = {
   town: { x: 656, y: 1150 },
 };
 
-function pickRandom<T>(arr: readonly T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)]!;
+// Deterministic mapping — same name → same sprite/color → progression is tied to name
+function hashName(name: string): number {
+  let h = 0;
+  const s = name.toLowerCase().trim();
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
+function spriteForName(name: string): string {
+  return SPRITES[hashName(name) % SPRITES.length]!;
+}
+function colorForName(name: string): string {
+  // offset hash so color and sprite don't always pair the same way
+  return COLORS[hashName(name + "_color") % COLORS.length]!;
 }
 
 // Create account - idempotent by name (for demo). In prod use auth.
@@ -27,14 +40,27 @@ export const create = mutation({
     if (trimmed.length < 2) throw new Error("Name must be at least 2 characters");
     if (trimmed.length > 20) throw new Error("Name too long");
 
-    // Check existing by exact name (case-insensitive)
-    const existing = await ctx.db
+    // Simple name-only auth — same name → same player → progression saved
+    // 1) try exact match via index (fast path)
+    let existing = await ctx.db
       .query("players")
       .withIndex("by_name", (q) => q.eq("name", trimmed))
       .unique()
       .catch(() => null);
 
-    // If exists, reuse (demo allows same name rejoin). Real app would use auth.
+    // 2) case-insensitive fallback so "Ash" and "ash" map to same progression
+    if (!existing) {
+      const trimmedLower = trimmed.toLowerCase();
+      const candidates = await ctx.db.query("players").withIndex("by_name").collect();
+      existing = candidates.find((p) => p.name.toLowerCase() === trimmedLower) ?? null;
+      // small full-scan fallback if index miss (covers old data)
+      if (!existing) {
+        const all = await ctx.db.query("players").collect();
+        existing = all.find((p) => p.name.toLowerCase() === trimmedLower) ?? null;
+      }
+    }
+
+    // If exists, reuse — progression (level/xp) stays tied to name
     if (existing) {
       // ensure presence row exists / mark online
       const presence = await ctx.db
@@ -63,10 +89,11 @@ export const create = mutation({
       return existing._id;
     }
 
+    // Deterministic character based on name — same name always yields same sprite/color
     const playerId = await ctx.db.insert("players", {
       name: trimmed,
-      sprite: args.sprite ?? pickRandom(SPRITES),
-      color: args.color ?? pickRandom(COLORS),
+      sprite: args.sprite ?? spriteForName(trimmed),
+      color: args.color ?? colorForName(trimmed),
       level: 1,
       xp: 0,
       totalExplanations: 0,

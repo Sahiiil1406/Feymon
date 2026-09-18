@@ -277,55 +277,58 @@ export default function FeynmanLoop({ playerId, onClose, onLeveledUp }: Props) {
                 <button className="fl-btn ghost" onClick={() => setCompleted(null)}>Start another loop</button>
               </div>
 
-              {/* Shareable result card — boosts usefulness + social proof */}
+              {/* Shareable result card — highly visible, boosts usefulness + social proof */}
               <div className="fl-share-card" style={{
-                marginTop: 10,
-                background: "#0a0a0a",
-                border: "1px solid #1a1a1a",
+                marginTop: 12,
+                background: "#111",
+                border: "1px solid rgba(255,107,53,0.35)",
                 borderRadius: 12,
-                padding: 12,
+                padding: 14,
                 display: "grid",
-                gap: 10,
+                gap: 12,
                 position: "relative",
-                overflow: "hidden",
+                overflow: "visible",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,107,53,0.12)",
               }}>
-                <div style={{ position: "absolute", left: 0, right: 0, top: 0, height: 1, background: "linear-gradient(90deg, transparent, rgba(255,107,53,0.18) 50%, transparent)" }} />
+                <div style={{ position: "absolute", left: 0, right: 0, top: 0, height: 2, background: "linear-gradient(90deg, transparent, #FF6B35 50%, transparent)", borderRadius: "12px 12px 0 0" }} />
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  <span style={{ padding: "3px 8px", borderRadius: 999, background: "#FF6B35", color: "#000", fontSize: 10, fontWeight: 800, letterSpacing: "0.06em", fontFamily: "'JetBrains Mono',monospace" }}>SHARE</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>Share your score</span>
-                  <span style={{ marginLeft: "auto", fontSize: 10, padding: "3px 7px", borderRadius: 999, background: fcSource === "firecrawl" ? "rgba(255,107,53,0.12)" : "#000", border: `1px solid ${fcSource === "firecrawl" ? "rgba(255,107,53,0.18)" : "#1a1a1a"}`, color: fcSource === "firecrawl" ? "#FF6B35" : "#666", fontFamily: "'JetBrains Mono',monospace" }}>
-                    {fcSource === "firecrawl" ? "🔥 Grounded via Firecrawl" : fcSource === "static" ? "◆ Grounded" : "Grounded"}
+                  <span style={{ padding: "4px 10px", borderRadius: 999, background: "#FF6B35", color: "#000", fontSize: 10, fontWeight: 800, letterSpacing: "0.06em", fontFamily: "'JetBrains Mono',monospace", boxShadow: "0 1px 8px rgba(255,107,53,0.3)" }}>SHARE</span>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: "#fff", letterSpacing: "-0.01em" }}>Share your score</span>
+                  <span style={{ marginLeft: "auto", fontSize: 10, padding: "4px 9px", borderRadius: 999, background: fcSource === "firecrawl" ? "#FF6B35" : "#1a1a1a", border: `1px solid ${fcSource === "firecrawl" ? "#FF6B35" : "#2a2a2a"}`, color: fcSource === "firecrawl" ? "#000" : "#fff", fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ fontSize: 12 }}>{fcSource === "firecrawl" ? "🔥" : "◆"}</span> {fcSource === "firecrawl" ? "Grounded via Firecrawl" : fcSource === "static" ? "Grounded" : "Grounded"}
                   </span>
                 </div>
 
-                <div style={{ background: "#000", border: "1px solid #1a1a1a", borderRadius: 10, padding: "10px 11px", display: "grid", gap: 6 }}>
-                  <div style={{ fontSize: 13, lineHeight: 1.5, color: "#ededed", fontWeight: 600 }}>
+                <div style={{ background: "#000", border: "1px solid #2a2a2a", borderRadius: 10, padding: "12px 12px", display: "grid", gap: 6, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)" }}>
+                  <div style={{ fontSize: 14, lineHeight: 1.5, color: "#fff", fontWeight: 700 }}>
                     “{shareText}”
                   </div>
-                  <div style={{ fontSize: 11, color: "#8a8a8a", fontFamily: "'JetBrains Mono',monospace", wordBreak: "break-all" }}>
+                  <div style={{ fontSize: 11, color: "#FF6B35", fontFamily: "'JetBrains Mono',monospace", wordBreak: "break-all", background: "rgba(255,107,53,0.08)", padding: "4px 6px", borderRadius: 6, border: "1px solid rgba(255,107,53,0.14)" }}>
                     {shareUrl}
                   </div>
                 </div>
 
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  <button onClick={handleCopy} className="fl-btn sm" style={{ background: shareCopied ? "#FF6B35" : "#0a0a0a", color: shareCopied ? "#000" : "#ededed", borderColor: shareCopied ? "#FF6B35" : "#1a1a1a" }}>
-                    {shareCopied ? "✓ COPIED" : "⎘ COPY"}
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button onClick={handleCopy} className="fl-btn sm" style={{ background: shareCopied ? "#10b981" : "#FF6B35", color: shareCopied ? "#fff" : "#000", borderColor: shareCopied ? "#10b981" : "#FF6B35", fontWeight: 800, minWidth: 96, boxShadow: shareCopied ? "0 0 0 3px rgba(16,185,129,0.15)" : "0 1px 8px rgba(255,107,53,0.2)" }}>
+                    {shareCopied ? "✓ COPIED!" : "⎘ COPY"}
                   </button>
-                  <button onClick={handleShareX} className="fl-btn sm ghost" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                    𝕏 Share on X
+                  <button onClick={handleShareX} className="fl-btn sm" style={{ background: "#000", color: "#fff", borderColor: "#2a2a2a", display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 700 }}>
+                    𝕏 X
                   </button>
-                  <button onClick={handleShareLinkedIn} className="fl-btn sm ghost">
+                  <button onClick={handleShareLinkedIn} className="fl-btn sm" style={{ background: "#0a66c2", color: "#fff", borderColor: "#0a66c2", fontWeight: 700 }}>
                     in LinkedIn
                   </button>
-                  {(navigator as any).share && (
-                    <button onClick={handleNativeShare} className="fl-btn sm ghost" style={{ marginLeft: "auto" }}>
+                  {(navigator as any).share ? (
+                    <button onClick={handleNativeShare} className="fl-btn sm" style={{ marginLeft: "auto", background: "#1a1a1a", color: "#fff", borderColor: "#2a2a2a" }}>
                       ↗ Share
                     </button>
+                  ) : (
+                    <span style={{ marginLeft: "auto", fontSize: 10, color: "#666", fontFamily: "'JetBrains Mono',monospace", alignSelf: "center" }}>Copy to share anywhere</span>
                   )}
                 </div>
 
-                <div style={{ fontSize: 10, color: "#666", fontFamily: "'JetBrains Mono',monospace", lineHeight: 1.4 }}>
-                  Tag <b style={{ color: "#8a8a8a" }}>@convex @OpenAI @firecrawl</b> — your score link helps judges see social proof.
+                <div style={{ fontSize: 10, color: "#8a8a8a", fontFamily: "'JetBrains Mono',monospace", lineHeight: 1.4, background: "#000", padding: "6px 8px", borderRadius: 6, border: "1px solid #1a1a1a" }}>
+                  Tag <b style={{ color: "#FF6B35" }}>@convex @OpenAI @firecrawl</b> — your score link helps judges see social proof. Try to beat {score10}/10!
                 </div>
               </div>
             </>
@@ -400,11 +403,11 @@ export default function FeynmanLoop({ playerId, onClose, onLeveledUp }: Props) {
               <i style={{ width: `${Math.round((sess.turnCount / sess.maxTurns) * 100)}%` }} />
             </div>
           </div>
-          {/* Firecrawl grounded badge — spinner → chip, proves sponsor does real work */}
-          <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+          {/* Firecrawl grounded badge — highly visible, proves sponsor does real work */}
+          <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
             {fcLoading ? (
-              <span className="fl-fc-badge loading" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 8px", borderRadius: 999, background: "#111", border: "1px solid #1a1a1a", fontSize: 10, fontFamily: "'JetBrains Mono',monospace", color: "#666" }}>
-                <span style={{ width: 6, height: 6, borderRadius: 999, background: "#FF6B35", display: "inline-block" }} /> Grounding via Firecrawl…
+              <span className="fl-fc-badge loading" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 999, background: "#FF6B35", border: "1px solid #FF6B35", fontSize: 10, fontFamily: "'JetBrains Mono',monospace", color: "#000", fontWeight: 700, boxShadow: "0 1px 8px rgba(255,107,53,0.25)" }}>
+                <span style={{ width: 6, height: 6, borderRadius: 999, background: "#000", display: "inline-block", animation: "spin 0.7s linear infinite" } as any} /> Grounding via Firecrawl…
               </span>
             ) : fcContext ? (
               <span
@@ -414,24 +417,30 @@ export default function FeynmanLoop({ playerId, onClose, onLeveledUp }: Props) {
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 6,
-                  padding: "3px 8px",
+                  padding: "4px 10px",
                   borderRadius: 999,
-                  background: fcSource === "firecrawl" ? "rgba(255,107,53,0.12)" : "#0a0a0a",
-                  border: `1px solid ${fcSource === "firecrawl" ? "rgba(255,107,53,0.18)" : "#1a1a1a"}`,
+                  background: fcSource === "firecrawl" ? "#FF6B35" : "#1a1a1a",
+                  border: `1px solid ${fcSource === "firecrawl" ? "#FF6B35" : "#2a2a2a"}`,
                   fontSize: 10,
                   fontFamily: "'JetBrains Mono',monospace",
-                  color: fcSource === "firecrawl" ? "#FF6B35" : "#8a8a8a",
+                  color: fcSource === "firecrawl" ? "#000" : "#fff",
+                  fontWeight: 700,
                   maxWidth: "100%",
                   overflow: "hidden",
+                  boxShadow: fcSource === "firecrawl" ? "0 1px 8px rgba(255,107,53,0.25)" : "none",
                 }}
               >
-                <span style={{ fontSize: 11 }}>{fcSource === "firecrawl" ? "🔥" : "◆"}</span>
+                <span style={{ fontSize: 12 }}>{fcSource === "firecrawl" ? "🔥" : "◆"}</span>
                 {fcSource === "firecrawl" ? "Grounded via Firecrawl" : "Grounded • built-in"}
-                <em style={{ marginLeft: 4, opacity: 0.6, fontStyle: "normal", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 160 }}>
-                  {fcContext.slice(0, 38).replace(/\s+/g, " ").trim()}…
+                <em style={{ marginLeft: 4, opacity: fcSource === "firecrawl" ? 0.7 : 0.6, fontStyle: "normal", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 140, fontWeight: 400 }}>
+                  {fcContext.slice(0, 32).replace(/\s+/g, " ").trim()}…
                 </em>
               </span>
-            ) : null}
+            ) : (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 8px", borderRadius: 999, background: "#0a0a0a", border: "1px solid #1a1a1a", fontSize: 9, fontFamily: "'JetBrains Mono',monospace", color: "#666" }}>
+                ◆ Grounding off
+              </span>
+            )}
           </div>
         </div>
         <div className="fl-head-actions">
@@ -461,6 +470,37 @@ export default function FeynmanLoop({ playerId, onClose, onLeveledUp }: Props) {
         )}
         {needsRating && <div className="fl-needs">✔ Loop complete — hit <b>GET RATED</b> to see your score &amp; level up!</div>}
       </div>
+
+      {/* Share card — also shown immediately in active view after rating, before query flips to !active */}
+      {completed && completed.topic && (
+        <div style={{ margin: "10px 12px 0 12px", background: "#111", border: "1px solid rgba(255,107,53,0.35)", borderRadius: 12, padding: 12, display: "grid", gap: 10, boxShadow: "0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,107,53,0.12)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span style={{ padding: "4px 10px", borderRadius: 999, background: "#FF6B35", color: "#000", fontSize: 10, fontWeight: 800, letterSpacing: "0.06em", fontFamily: "'JetBrains Mono',monospace" }}>SHARE</span>
+            <span style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>Share your score</span>
+            <span style={{ marginLeft: "auto", fontSize: 10, padding: "3px 7px", borderRadius: 999, background: fcSource === "firecrawl" ? "#FF6B35" : "#1a1a1a", color: fcSource === "firecrawl" ? "#000" : "#fff", fontFamily: "'JetBrains Mono',monospace", fontWeight: 700 }}>
+              {fcSource === "firecrawl" ? "🔥 Grounded via Firecrawl" : "◆ Grounded"}
+            </span>
+          </div>
+          <div style={{ background: "#000", border: "1px solid #2a2a2a", borderRadius: 10, padding: "10px 11px", display: "grid", gap: 4 }}>
+            <div style={{ fontSize: 13, color: "#fff", fontWeight: 700 }}>“I scored {(completed.score / 10).toFixed(1)} on {completed.topic} in Feymon — try to beat me!”</div>
+            <div style={{ fontSize: 11, color: "#FF6B35", fontFamily: "'JetBrains Mono',monospace", wordBreak: "break-all" }}>https://graceful-buzzard-759.convex.site</div>
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <button
+              onClick={async () => {
+                const txt = `I scored ${(completed.score / 10).toFixed(1)} on ${completed.topic} in Feymon — try to beat me! https://graceful-buzzard-759.convex.site`;
+                try { await navigator.clipboard.writeText(txt); setShareCopied(true); setTimeout(() => setShareCopied(false), 1500); } catch {}
+              }}
+              className="fl-btn sm"
+              style={{ background: shareCopied ? "#10b981" : "#FF6B35", color: shareCopied ? "#fff" : "#000", borderColor: shareCopied ? "#10b981" : "#FF6B35", fontWeight: 800 }}
+            >
+              {shareCopied ? "✓ COPIED" : "⎘ COPY"}
+            </button>
+            <button onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(`I scored ${(completed.score / 10).toFixed(1)} on ${completed.topic} in Feymon — try to beat me!`)}&url=${encodeURIComponent("https://graceful-buzzard-759.convex.site")}`, "_blank")} className="fl-btn sm" style={{ background: "#000", color: "#fff", borderColor: "#2a2a2a" }}>𝕏 X</button>
+            <button onClick={() => window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent("https://graceful-buzzard-759.convex.site")}`, "_blank")} className="fl-btn sm" style={{ background: "#0a66c2", color: "#fff", borderColor: "#0a66c2" }}>in LinkedIn</button>
+          </div>
+        </div>
+      )}
 
       {!needsRating ? (
         <div className="fl-composer">
