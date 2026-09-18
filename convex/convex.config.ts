@@ -10,6 +10,7 @@ const app = defineApp({
     GEMINI_API_KEY: v.optional(v.string()),
     OPENAI_MODEL: v.optional(v.string()),
     GEMINI_MODEL: v.optional(v.string()),
+    FIRECRAWL_API_KEY: v.optional(v.string()),
   },
 });
 app.use(staticHosting, { httpPrefix: "/" });

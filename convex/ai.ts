@@ -34,6 +34,166 @@ function getGeminiModel(): string {
   return process.env.GEMINI_MODEL?.trim() || "gemini-1.5-flash";
 }
 
+function getFirecrawlApiKey(): string | undefined {
+  return process.env.FIRECRAWL_API_KEY?.trim() || undefined;
+}
+
+// ============================================================
+// Firecrawl caller — feeds grounded context to the LLM
+// Uses /v1/scrape (and /v1/search when topic is not a URL)
+// Env: FIRECRAWL_API_KEY
+// Docs: https://docs.firecrawl.dev
+// ============================================================
+
+export type FirecrawlScrapeResult = {
+  markdown: string;
+  html?: string;
+  metadata?: Record<string, any>;
+  url: string;
+};
+
+/**
+ * Low-level Firecrawl scrape — fetches markdown for a single URL.
+ * Returns null if FIRECRAWL_API_KEY missing or scrape fails.
+ */
+export async function scrapeWithFirecrawl(
+  url: string,
+  opts?: { formats?: ("markdown" | "html")[]; onlyMainContent?: boolean; waitFor?: number },
+): Promise<FirecrawlScrapeResult | null> {
+  const apiKey = getFirecrawlApiKey();
+  if (!apiKey) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+    if (!["http:", "https:"].includes(parsed.protocol)) return null;
+  } catch {
+    return null;
+  }
+  const formats = opts?.formats ?? ["markdown"];
+  try {
+    const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        url: parsed.toString(),
+        formats,
+        onlyMainContent: opts?.onlyMainContent ?? true,
+        waitFor: opts?.waitFor ?? 0,
+      }),
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      console.warn(`Firecrawl scrape ${res.status}: ${txt.slice(0, 400)}`);
+      return null;
+    }
+    const j: any = await res.json();
+    // Firecrawl returns { success, data: { markdown, html, metadata } } or { data: { markdown } }
+    const data = j?.data ?? j;
+    const markdown: string | undefined = data?.markdown ?? data?.content ?? data?.data?.markdown;
+    if (!markdown || typeof markdown !== "string") {
+      console.warn("Firecrawl scrape: no markdown in response", JSON.stringify(j).slice(0, 400));
+      return null;
+    }
+    return {
+      markdown: markdown.trim(),
+      html: typeof data?.html === "string" ? data.html : undefined,
+      metadata: data?.metadata,
+      url: parsed.toString(),
+    };
+  } catch (e) {
+    console.warn("Firecrawl scrape failed", url, e);
+    return null;
+  }
+}
+
+/**
+ * Firecrawl search — finds URLs for a topic/query, then scrapes top hit.
+ * Used when caller has a topic string, not a URL.
+ */
+export async function searchWithFirecrawl(
+  query: string,
+  limit = 3,
+): Promise<{ url: string; title?: string; description?: string }[] | null> {
+  const apiKey = getFirecrawlApiKey();
+  if (!apiKey) return null;
+  const q = query.trim().slice(0, 120);
+  if (!q) return null;
+  try {
+    const res = await fetch("https://api.firecrawl.dev/v1/search", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ query: q, limit, scrapeOptions: { formats: ["markdown"] } }),
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      console.warn(`Firecrawl search ${res.status}: ${txt.slice(0, 400)}`);
+      return null;
+    }
+    const j: any = await res.json();
+    const results = j?.data ?? j?.results ?? [];
+    if (!Array.isArray(results) || results.length === 0) return null;
+    return results.slice(0, limit).map((r: any) => ({
+      url: String(r.url ?? r.link ?? ""),
+      title: r.title ? String(r.title) : undefined,
+      description: r.description ? String(r.description) : undefined,
+    })).filter((r: any) => r.url);
+  } catch (e) {
+    console.warn("Firecrawl search failed", query, e);
+    return null;
+  }
+}
+
+/**
+ * High-level helper — topic → grounded markdown context (via Firecrawl).
+ * - If `topic` looks like a URL, scrapes that URL directly.
+ * - Else tries search → scrape top result → fallback to Wikipedia scrape.
+ * Returns trimmed markdown (maxChars) or null if no key / no result.
+ * Safe to call from any LLM helper — never throws, always returns null on failure.
+ */
+export async function getFirecrawlContextForTopic(
+  topic: string,
+  opts?: { maxChars?: number },
+): Promise<string | null> {
+  const apiKey = getFirecrawlApiKey();
+  if (!apiKey) return null;
+  const trimmed = topic.trim();
+  if (!trimmed) return null;
+  const maxChars = opts?.maxChars ?? 3500;
+
+  // Direct URL path
+  if (/^https?:\/\//i.test(trimmed)) {
+    const r = await scrapeWithFirecrawl(trimmed);
+    if (r?.markdown) return r.markdown.slice(0, maxChars);
+    return null;
+  }
+
+  // Try search → scrape top hit
+  try {
+    const hits = await searchWithFirecrawl(trimmed, 2);
+    if (hits && hits.length > 0) {
+      for (const h of hits) {
+        const r = await scrapeWithFirecrawl(h.url);
+        if (r?.markdown && r.markdown.length > 200) return r.markdown.slice(0, maxChars);
+      }
+    }
+  } catch {}
+
+  // Fallback: Wikipedia page for topic (e.g., "Photosynthesis" → wiki/Photosynthesis)
+  try {
+    const wikiUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(trimmed.replace(/\s+/g, "_"))}`;
+    const r = await scrapeWithFirecrawl(wikiUrl);
+    if (r?.markdown && r.markdown.length > 200) return r.markdown.slice(0, maxChars);
+  } catch {}
+
+  return null;
+}
+
 // ---- low-level callers ----
 
 async function callOpenAI(prompt: string, system?: string): Promise<string> {
@@ -241,15 +401,26 @@ export async function generateNpcDialogueLLM(args: {
 
   // Build system + prompt tailored to personality
   const nonce = Math.random().toString(36).slice(2, 7);
+  // Firecrawl grounded context — non-blocking, null if no key or scrape misses
+  let firecrawlContext: string | null = null;
+  if (args.topicTitle && getFirecrawlApiKey()) {
+    try {
+      firecrawlContext = await getFirecrawlContextForTopic(args.topicTitle, { maxChars: 900 });
+    } catch {}
+  }
   const topicBlock = args.topicTitle
     ? `Topic specialty: "${args.topicTitle}" — ${args.topicPrompt ?? ""}`.trim()
     : `You are a dojo guide, not tied to a single topic. Encourage Feynman teaching in general.`;
+  const firecrawlBlock = firecrawlContext
+    ? `Grounded reference (Firecrawl scrape, use to keep challenge accurate — don't quote verbatim, keep 1-2 sentences): ${firecrawlContext.slice(0, 900)}`
+    : "";
 
   const systemBase =
     `You are ${args.npcName}, a ${args.role}. Personality: ${args.personality}. ` +
     `You live in Feymon Village, a warm Pokemon-inspired learning plaza. ` +
     `Speak in character, 1-2 sentences, max 42 words. Be warm, curious, and invite the player to explain simply (Feynman technique: analogy for a 10-year-old, no jargon). ` +
-    `Never be rude. Vary phrasing — avoid repeating past lines verbatim. Provide ONLY the dialogue line, no quotes, no stage directions.`;
+    `Never be rude. Vary phrasing — avoid repeating past lines verbatim. Provide ONLY the dialogue line, no quotes, no stage directions.` +
+    (firecrawlBlock ? ` ${firecrawlBlock}` : "");
 
   const playerBlock = args.playerName
     ? `Player: ${args.playerName} (Lv${args.playerLevel ?? 1}). Variation seed: ${nonce}. Make it feel personal and fresh.`
@@ -346,15 +517,28 @@ export async function generateCounterQuestionLLM(args: {
   const prov = getProvider();
   if (prov === "mock") return mockCounterQuestion(args.topic, args.turnCount, args.lastExplanation);
 
+  // Firecrawl grounded context — best-effort, never blocks on failure
+  let firecrawlContext: string | null = null;
+  if (getFirecrawlApiKey()) {
+    try {
+      firecrawlContext = await getFirecrawlContextForTopic(args.topic, { maxChars: 1200 });
+    } catch {}
+  }
+  const groundedAddition = firecrawlContext
+    ? `\nGrounded reference for this topic (Firecrawl scrape — use to spot misconceptions, don't quote verbatim, keep Socratic tone):\n${firecrawlContext.slice(0, 1200)}\n`
+    : "";
+
   const system =
     "You are a Socratic Feynman tutor. Your job is to poke holes in the learner's explanation with ONE short, sharp follow-up question. " +
-    "Rules: (1) Be curious, supportive but probing. (2) Ask exactly ONE question, 1-2 sentences, max 40 words. (3) Stay tightly on topic. (4) Prefer 'what if' / 'why' / analogy-busting angles. (5) Never answer for them.";
+    "Rules: (1) Be curious, supportive but probing. (2) Ask exactly ONE question, 1-2 sentences, max 40 words. (3) Stay tightly on topic. (4) Prefer 'what if' / 'why' / analogy-busting angles. (5) Never answer for them." +
+    groundedAddition;
   const historyBlock = args.history
     .slice(-6)
     .map((h) => `${h.role === "user" ? "Learner" : "Tutor"}: ${h.content}`)
     .join("\n");
   const prompt =
     `Topic: ${args.topic}\n` +
+    (firecrawlContext ? `Grounded context available: yes (truncated above in system)\n` : "") +
     `Turn: ${args.turnCount + 1} / 5\n` +
     `Conversation so far:\n${historyBlock}\n\n` +
     `Latest learner explanation: """${args.lastExplanation}"""\n\n` +
@@ -389,10 +573,22 @@ export async function rateSessionLLM(args: {
   const prov = getProvider();
   if (prov === "mock") return mockRating(args.topic, args.explanations);
 
+  // Firecrawl context for grounded scoring (spot factual gaps without hallucination)
+  let firecrawlContext: string | null = null;
+  if (getFirecrawlApiKey()) {
+    try {
+      firecrawlContext = await getFirecrawlContextForTopic(args.topic, { maxChars: 1500 });
+    } catch {}
+  }
+  const groundedAddition = firecrawlContext
+    ? `\nGrounded reference for "${args.topic}" (Firecrawl scrape — use to check factual correctness, but judge clarity/simplicity, not just recall):\n${firecrawlContext.slice(0, 1500)}\n`
+    : "";
+
   const system =
     "You are a Feynman technique evaluator. Rate the learner's understanding from the full loop. " +
     "Return ONLY valid JSON with keys: score (0-100 int), strengths (2-3 short bullets), weaknesses (2-3 short bullets), feedback (2-4 sentences). " +
-    "Be honest, constructive, encourage growth. No extra text outside JSON.";
+    "Be honest, constructive, encourage growth. No extra text outside JSON." +
+    groundedAddition;
 
   const convo = args.explanations
     .map((ex, i) => `Q${i + 1}: ${args.questions[i] ?? "(initial explain " + args.topic + ")"}\nA${i + 1}: ${ex}`)
@@ -466,14 +662,74 @@ export const health = action({
     const prov = getProvider();
     const hasOpenAI = !!process.env.OPENAI_API_KEY;
     const hasGemini = !!process.env.GEMINI_API_KEY;
+    const hasFirecrawl = !!getFirecrawlApiKey();
     return {
       provider: prov,
       hasOpenAI,
       hasGemini,
+      hasFirecrawl,
       openaiModel: getOpenAIModel(),
       geminiModel: getGeminiModel(),
+      firecrawlConfigured: hasFirecrawl,
       mock: prov === "mock",
     };
+  },
+});
+
+// ============================================================
+// Firecrawl actions — scrape any URL and get topic-grounded context
+// ============================================================
+
+/**
+ * Scrape a URL via Firecrawl and return markdown.
+ * Use this to give the LLM fresh, grounded context (e.g., Wikipedia page for a topic).
+ */
+export const scrapeUrl = action({
+  args: {
+    url: v.string(),
+    onlyMainContent: v.optional(v.boolean()),
+  },
+  handler: async (_ctx, args) => {
+    const apiKey = getFirecrawlApiKey();
+    if (!apiKey) return { markdown: null as string | null, error: "FIRECRAWL_API_KEY not set", provider: getProvider() };
+    const result = await scrapeWithFirecrawl(args.url, { onlyMainContent: args.onlyMainContent ?? true });
+    if (!result) return { markdown: null as string | null, error: "Scrape failed or no markdown", url: args.url, provider: getProvider() };
+    return { markdown: result.markdown, metadata: result.metadata, url: result.url, provider: getProvider() };
+  },
+});
+
+/**
+ * Get grounded context for a topic via Firecrawl (search → scrape top hit → fallback to Wikipedia).
+ * Returns markdown excerpt suitable to prepend to LLM prompts for factual grounding.
+ */
+export const fetchTopicContext = action({
+  args: {
+    topic: v.string(),
+    maxChars: v.optional(v.number()),
+  },
+  handler: async (_ctx, args) => {
+    const apiKey = getFirecrawlApiKey();
+    if (!apiKey) return { context: null as string | null, error: "FIRECRAWL_API_KEY not set", provider: getProvider() };
+    const ctxText = await getFirecrawlContextForTopic(args.topic, { maxChars: args.maxChars ?? 3500 });
+    if (!ctxText) return { context: null as string | null, error: "No context found", topic: args.topic, provider: getProvider() };
+    return { context: ctxText, urlHint: `firecrawl:topic:${args.topic}`, provider: getProvider() };
+  },
+});
+
+/**
+ * Generic Firecrawl search → returns URL list for a query.
+ */
+export const searchFirecrawl = action({
+  args: {
+    query: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (_ctx, args) => {
+    const apiKey = getFirecrawlApiKey();
+    if (!apiKey) return { results: null as any, error: "FIRECRAWL_API_KEY not set" };
+    const results = await searchWithFirecrawl(args.query, Math.min(args.limit ?? 3, 5));
+    if (!results) return { results: null as any, error: "Search failed or no results", query: args.query };
+    return { results, query: args.query };
   },
 });
 
