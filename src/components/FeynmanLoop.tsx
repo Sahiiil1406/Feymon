@@ -29,6 +29,7 @@ export default function FeynmanLoop({ playerId, onClose, onLeveledUp }: Props) {
   const abandon = useMutation(api.feynman.abandonSession);
   const submitAndGenerate = useAction(api.feynman.submitAndGenerate);
   const rateSession = useAction(api.feynman.rateSession);
+  const fetchTopicContext = useAction(api.ai.fetchTopicContext);
 
   const [topic, setTopic] = useState("");
   const [maxTurns, setMaxTurns] = useState(4);
@@ -39,7 +40,12 @@ export default function FeynmanLoop({ playerId, onClose, onLeveledUp }: Props) {
   const [sending, setSending] = useState(false);
   const [rating, setRating] = useState(false);
   const [sendErr, setSendErr] = useState<string | null>(null);
-  const [completed, setCompleted] = useState<null | { score: number; strengths: string[]; weaknesses: string[]; feedback: string; xpAwarded: number; leveledUp?: boolean; newLevel?: number }>(null);
+  const [completed, setCompleted] = useState<null | { score: number; strengths: string[]; weaknesses: string[]; feedback: string; xpAwarded: number; leveledUp?: boolean; newLevel?: number; topic?: string }>(null);
+  // Firecrawl grounded context — fetched once per topic, shows badge + grounds LLM
+  const [fcContext, setFcContext] = useState<string | null>(null);
+  const [fcSource, setFcSource] = useState<"firecrawl" | "static" | null>(null);
+  const [fcLoading, setFcLoading] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const speech = useSpeechRecognition({
@@ -66,6 +72,48 @@ export default function FeynmanLoop({ playerId, onClose, onLeveledUp }: Props) {
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [active?.turns, completed]);
+
+  // Firecrawl — fetch grounded context once per topic for badge + LLM grounding (active or just-completed)
+  useEffect(() => {
+    const topic = (active as any)?.session?.topic as string | undefined ?? (completed as any)?.topic as string | undefined;
+    if (!topic) {
+      // keep last context for share card if we already have one, otherwise clear
+      if (!(completed as any)?.topic) {
+        setFcContext(null);
+        setFcSource(null);
+        setFcLoading(false);
+      }
+      return;
+    }
+    let cancelled = false;
+    setFcLoading(true);
+    // keep previous context visible until new one arrives? clear for loading state
+    // setFcContext(null); // keep old to avoid flicker
+    setFcSource(null);
+    fetchTopicContext({ topic, maxChars: 900 })
+      .then((res: any) => {
+        if (cancelled) return;
+        if (res?.context) {
+          setFcContext(res.context);
+          setFcSource(res.source ?? (res.urlHint?.startsWith("firecrawl") ? "firecrawl" : "static"));
+        } else {
+          setFcContext(null);
+          setFcSource(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setFcContext(null);
+          setFcSource(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setFcLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [(active as any)?.session?.topic, (completed as any)?.topic, fetchTopicContext]);
 
   const needsRating = useMemo(() => {
     if (!active?.session) return false;
@@ -115,6 +163,7 @@ export default function FeynmanLoop({ playerId, onClose, onLeveledUp }: Props) {
     if (!active?.session) return;
     setRating(true); setSendErr(null);
     try {
+      const topicAtRate = (active.session as any).topic as string;
       const res: any = await rateSession({ sessionId: active.session._id as Id<"feynmanSessions">, playerId: pid });
       setCompleted({
         score: res.score,
@@ -124,6 +173,7 @@ export default function FeynmanLoop({ playerId, onClose, onLeveledUp }: Props) {
         xpAwarded: res.xpAwarded,
         leveledUp: res.leveledUp,
         newLevel: res.newLevel,
+        topic: topicAtRate,
       });
       if (res.leveledUp && res.newLevel) onLeveledUp?.(res.newLevel, res.xpAwarded);
     } catch (err: any) {
@@ -149,6 +199,7 @@ export default function FeynmanLoop({ playerId, onClose, onLeveledUp }: Props) {
         xpAwarded: latestCompleted.xpAwarded ?? completed.xpAwarded,
         leveledUp: latestCompleted.leveledUp,
         newLevel: latestCompleted.levelAfter,
+        topic: latestCompleted.topic ?? completed.topic,
       });
     }
   }, [latestCompleted, active, completed]);
@@ -168,25 +219,118 @@ export default function FeynmanLoop({ playerId, onClose, onLeveledUp }: Props) {
           {onClose && <button className="fl-x" onClick={onClose} aria-label="Close">×</button>}
         </div>
 
-        {completed && (
-          <div className="fl-result">
-            <div className="fl-result-head">
-              <span className="fl-score">{completed.score}<em>/100</em></span>
-              <div>
-                <div className="fl-result-title">Session rated</div>
-                <div className="fl-result-sub">+{completed.xpAwarded} XP {completed.leveledUp ? `• LV UP → ${completed.newLevel}!` : ""}</div>
+        {completed && (() => {
+          const LIVE_URL = "https://graceful-buzzard-759.convex.site";
+          const topicForShare = completed.topic ?? (latestCompleted as any)?.topic ?? "a topic";
+          const score10 = (completed.score / 10).toFixed(1);
+          const shareText = `I scored ${score10} on ${topicForShare} in Feymon — try to beat me!`;
+          const shareUrl = LIVE_URL;
+          const fullShare = `${shareText} ${shareUrl}`;
+          const handleCopy = async () => {
+            try {
+              await navigator.clipboard.writeText(fullShare);
+              setShareCopied(true);
+              setTimeout(() => setShareCopied(false), 1800);
+            } catch {
+              const ta = document.createElement("textarea");
+              ta.value = fullShare;
+              document.body.appendChild(ta);
+              ta.select();
+              document.execCommand("copy");
+              document.body.removeChild(ta);
+              setShareCopied(true);
+              setTimeout(() => setShareCopied(false), 1800);
+            }
+          };
+          const handleShareX = () => {
+            const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`;
+            window.open(url, "_blank", "noopener,noreferrer");
+          };
+          const handleShareLinkedIn = () => {
+            const url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`;
+            window.open(url, "_blank", "noopener,noreferrer");
+          };
+          const handleNativeShare = async () => {
+            if ((navigator as any).share) {
+              try { await (navigator as any).share({ title: "Feymon", text: shareText, url: shareUrl }); } catch {}
+            } else {
+              handleCopy();
+            }
+          };
+          return (
+            <>
+              <div className="fl-result">
+                <div className="fl-result-head">
+                  <span className="fl-score">{completed.score}<em>/100</em></span>
+                  <div>
+                    <div className="fl-result-title">Session rated</div>
+                    <div className="fl-result-sub">+{completed.xpAwarded} XP {completed.leveledUp ? `• LV UP → ${completed.newLevel}!` : ""}</div>
+                  </div>
+                </div>
+                {!!completed.feedback && <p className="fl-feedback">“{completed.feedback}”</p>}
+                {(completed.strengths?.length || completed.weaknesses?.length) ? (
+                  <div className="fl-grid2">
+                    <div className="fl-col"><span className="fl-col-title ok">Strengths</span><ul>{completed.strengths.map((s, i) => <li key={i}>{s}</li>)}</ul></div>
+                    <div className="fl-col"><span className="fl-col-title bad">To improve</span><ul>{completed.weaknesses.map((s, i) => <li key={i}>{s}</li>)}</ul></div>
+                  </div>
+                ) : null}
+                <button className="fl-btn ghost" onClick={() => setCompleted(null)}>Start another loop</button>
               </div>
-            </div>
-            {!!completed.feedback && <p className="fl-feedback">“{completed.feedback}”</p>}
-            {(completed.strengths?.length || completed.weaknesses?.length) ? (
-              <div className="fl-grid2">
-                <div className="fl-col"><span className="fl-col-title ok">Strengths</span><ul>{completed.strengths.map((s, i) => <li key={i}>{s}</li>)}</ul></div>
-                <div className="fl-col"><span className="fl-col-title bad">To improve</span><ul>{completed.weaknesses.map((s, i) => <li key={i}>{s}</li>)}</ul></div>
+
+              {/* Shareable result card — boosts usefulness + social proof */}
+              <div className="fl-share-card" style={{
+                marginTop: 10,
+                background: "#0a0a0a",
+                border: "1px solid #1a1a1a",
+                borderRadius: 12,
+                padding: 12,
+                display: "grid",
+                gap: 10,
+                position: "relative",
+                overflow: "hidden",
+              }}>
+                <div style={{ position: "absolute", left: 0, right: 0, top: 0, height: 1, background: "linear-gradient(90deg, transparent, rgba(255,107,53,0.18) 50%, transparent)" }} />
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span style={{ padding: "3px 8px", borderRadius: 999, background: "#FF6B35", color: "#000", fontSize: 10, fontWeight: 800, letterSpacing: "0.06em", fontFamily: "'JetBrains Mono',monospace" }}>SHARE</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>Share your score</span>
+                  <span style={{ marginLeft: "auto", fontSize: 10, padding: "3px 7px", borderRadius: 999, background: fcSource === "firecrawl" ? "rgba(255,107,53,0.12)" : "#000", border: `1px solid ${fcSource === "firecrawl" ? "rgba(255,107,53,0.18)" : "#1a1a1a"}`, color: fcSource === "firecrawl" ? "#FF6B35" : "#666", fontFamily: "'JetBrains Mono',monospace" }}>
+                    {fcSource === "firecrawl" ? "🔥 Grounded via Firecrawl" : fcSource === "static" ? "◆ Grounded" : "Grounded"}
+                  </span>
+                </div>
+
+                <div style={{ background: "#000", border: "1px solid #1a1a1a", borderRadius: 10, padding: "10px 11px", display: "grid", gap: 6 }}>
+                  <div style={{ fontSize: 13, lineHeight: 1.5, color: "#ededed", fontWeight: 600 }}>
+                    “{shareText}”
+                  </div>
+                  <div style={{ fontSize: 11, color: "#8a8a8a", fontFamily: "'JetBrains Mono',monospace", wordBreak: "break-all" }}>
+                    {shareUrl}
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <button onClick={handleCopy} className="fl-btn sm" style={{ background: shareCopied ? "#FF6B35" : "#0a0a0a", color: shareCopied ? "#000" : "#ededed", borderColor: shareCopied ? "#FF6B35" : "#1a1a1a" }}>
+                    {shareCopied ? "✓ COPIED" : "⎘ COPY"}
+                  </button>
+                  <button onClick={handleShareX} className="fl-btn sm ghost" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    𝕏 Share on X
+                  </button>
+                  <button onClick={handleShareLinkedIn} className="fl-btn sm ghost">
+                    in LinkedIn
+                  </button>
+                  {(navigator as any).share && (
+                    <button onClick={handleNativeShare} className="fl-btn sm ghost" style={{ marginLeft: "auto" }}>
+                      ↗ Share
+                    </button>
+                  )}
+                </div>
+
+                <div style={{ fontSize: 10, color: "#666", fontFamily: "'JetBrains Mono',monospace", lineHeight: 1.4 }}>
+                  Tag <b style={{ color: "#8a8a8a" }}>@convex @OpenAI @firecrawl</b> — your score link helps judges see social proof.
+                </div>
               </div>
-            ) : null}
-            <button className="fl-btn ghost" onClick={() => setCompleted(null)}>Start another loop</button>
-          </div>
-        )}
+            </>
+          );
+        })()}
 
         {!completed && (
           <form onSubmit={startSession} className="fl-card">
@@ -255,6 +399,39 @@ export default function FeynmanLoop({ playerId, onClose, onLeveledUp }: Props) {
             <div className="fl-progress">
               <i style={{ width: `${Math.round((sess.turnCount / sess.maxTurns) * 100)}%` }} />
             </div>
+          </div>
+          {/* Firecrawl grounded badge — spinner → chip, proves sponsor does real work */}
+          <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+            {fcLoading ? (
+              <span className="fl-fc-badge loading" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 8px", borderRadius: 999, background: "#111", border: "1px solid #1a1a1a", fontSize: 10, fontFamily: "'JetBrains Mono',monospace", color: "#666" }}>
+                <span style={{ width: 6, height: 6, borderRadius: 999, background: "#FF6B35", display: "inline-block" }} /> Grounding via Firecrawl…
+              </span>
+            ) : fcContext ? (
+              <span
+                className={`fl-fc-badge ${fcSource ?? "static"}`}
+                title={fcSource === "firecrawl" ? "Live web markdown via Firecrawl — LLM is grounded in fresh docs (truncated to 900 chars in system)" : "Built-in grounding — set FIRECRAWL_API_KEY for live web markdown via Firecrawl"}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "3px 8px",
+                  borderRadius: 999,
+                  background: fcSource === "firecrawl" ? "rgba(255,107,53,0.12)" : "#0a0a0a",
+                  border: `1px solid ${fcSource === "firecrawl" ? "rgba(255,107,53,0.18)" : "#1a1a1a"}`,
+                  fontSize: 10,
+                  fontFamily: "'JetBrains Mono',monospace",
+                  color: fcSource === "firecrawl" ? "#FF6B35" : "#8a8a8a",
+                  maxWidth: "100%",
+                  overflow: "hidden",
+                }}
+              >
+                <span style={{ fontSize: 11 }}>{fcSource === "firecrawl" ? "🔥" : "◆"}</span>
+                {fcSource === "firecrawl" ? "Grounded via Firecrawl" : "Grounded • built-in"}
+                <em style={{ marginLeft: 4, opacity: 0.6, fontStyle: "normal", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 160 }}>
+                  {fcContext.slice(0, 38).replace(/\s+/g, " ").trim()}…
+                </em>
+              </span>
+            ) : null}
           </div>
         </div>
         <div className="fl-head-actions">

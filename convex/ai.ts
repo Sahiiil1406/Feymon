@@ -150,27 +150,67 @@ export async function searchWithFirecrawl(
 }
 
 /**
+ * Static grounded fallback — used when Firecrawl is unavailable or scrape fails.
+ * Keeps LLM grounded even without a key / network hiccup. Covers seeded topics + common custom ones.
+ */
+const FIRECRAWL_STATIC_FALLBACK: Record<string, string> = {
+  photosynthesis:
+    "Photosynthesis — plants make sugar from sunlight in chloroplasts (chlorophyll). Light-dependent reactions split H2O → O2 + ATP/NADPH; Calvin cycle fixes CO2 into glucose (C6H12O6). Needs light, water, CO2; produces sugar + O2. At night light reactions stop.",
+  recursion:
+    "Recursion — a function calls itself with smaller input and a base case that stops. e.g., factorial(n)=n*factorial(n-1), base factorial(0)=1. Each call stacks a frame; missing base → infinite recursion / stack overflow. Loops iterate, recursion self-calls.",
+  "black holes":
+    "Black holes — gravity so strong escape velocity > light speed; light can't escape beyond event horizon. Formed by collapsed mass → spacetime curvature like a deep trampoline well. Outside, gravity bends paths; inside, no signal escapes. Hawking radiation → slow evaporation.",
+  "supply & demand":
+    "Supply & Demand — price where supply meets demand. More buyers + fixed supply (rare Charizard) → price up; more supply → price down. Equilibrium where curves cross; shifts move the price.",
+  "neural networks":
+    "Neural networks — layers of simple units: input encodes features, hidden layers compute weighted sums + ReLU/tanh, output predicts. Trained by backpropagation adjusting weights to cut loss. Like a team of novice guessers corrected after each mistake.",
+  blockchain:
+    "Blockchain — linked blocks with hashes; each block stores hash of previous → tamper-evident chain. Consensus (proof-of-work/stake) decides next block. Used for decentralized ledger.",
+  evolution:
+    "Evolution — variation + selection + inheritance. Random mutations create diversity; fittest traits spread. Over time populations adapt.",
+  inflation:
+    "Inflation — general price rise, usually from demand pull or cost push. Measured by CPI; central banks target ~2% via rates.",
+};
+
+/**
  * High-level helper — topic → grounded markdown context (via Firecrawl).
  * - If `topic` looks like a URL, scrapes that URL directly.
- * - Else tries search → scrape top result → fallback to Wikipedia scrape.
- * Returns trimmed markdown (maxChars) or null if no key / no result.
+ * - Else tries search → scrape top result → fallback to Wikipedia scrape → fallback to static map.
+ * Returns trimmed markdown (maxChars) or null if no result.
  * Safe to call from any LLM helper — never throws, always returns null on failure.
  */
 export async function getFirecrawlContextForTopic(
   topic: string,
   opts?: { maxChars?: number },
 ): Promise<string | null> {
-  const apiKey = getFirecrawlApiKey();
-  if (!apiKey) return null;
   const trimmed = topic.trim();
   if (!trimmed) return null;
   const maxChars = opts?.maxChars ?? 3500;
+  const lower = trimmed.toLowerCase();
+
+  // Static fallback helper
+  const staticFor = (t: string): string | null => {
+    const hit = FIRECRAWL_STATIC_FALLBACK[t.toLowerCase()] ?? FIRECRAWL_STATIC_FALLBACK[t.toLowerCase().replace(/\s+/g, " ").trim()];
+    if (hit) return hit.slice(0, maxChars);
+    // fuzzy: if topic contains a key
+    for (const [k, v] of Object.entries(FIRECRAWL_STATIC_FALLBACK)) {
+      if (lower.includes(k) || k.includes(lower)) return v.slice(0, maxChars);
+    }
+    return null;
+  };
+
+  const apiKey = getFirecrawlApiKey();
+
+  // If no key, still return static grounding so LLM isn't blind
+  if (!apiKey) {
+    return staticFor(trimmed) ?? null;
+  }
 
   // Direct URL path
   if (/^https?:\/\//i.test(trimmed)) {
     const r = await scrapeWithFirecrawl(trimmed);
     if (r?.markdown) return r.markdown.slice(0, maxChars);
-    return null;
+    return staticFor(trimmed) ?? null;
   }
 
   // Try search → scrape top hit
@@ -191,7 +231,8 @@ export async function getFirecrawlContextForTopic(
     if (r?.markdown && r.markdown.length > 200) return r.markdown.slice(0, maxChars);
   } catch {}
 
-  return null;
+  // Final fallback: static map
+  return staticFor(trimmed) ?? null;
 }
 
 // ---- low-level callers ----
@@ -401,9 +442,9 @@ export async function generateNpcDialogueLLM(args: {
 
   // Build system + prompt tailored to personality
   const nonce = Math.random().toString(36).slice(2, 7);
-  // Firecrawl grounded context — non-blocking, null if no key or scrape misses
+  // Firecrawl grounded context — non-blocking, static fallback even without key
   let firecrawlContext: string | null = null;
-  if (args.topicTitle && getFirecrawlApiKey()) {
+  if (args.topicTitle) {
     try {
       firecrawlContext = await getFirecrawlContextForTopic(args.topicTitle, { maxChars: 900 });
     } catch {}
@@ -517,15 +558,13 @@ export async function generateCounterQuestionLLM(args: {
   const prov = getProvider();
   if (prov === "mock") return mockCounterQuestion(args.topic, args.turnCount, args.lastExplanation);
 
-  // Firecrawl grounded context — best-effort, never blocks on failure
+  // Firecrawl grounded context — best-effort, static fallback even without key
   let firecrawlContext: string | null = null;
-  if (getFirecrawlApiKey()) {
-    try {
-      firecrawlContext = await getFirecrawlContextForTopic(args.topic, { maxChars: 1200 });
-    } catch {}
-  }
+  try {
+    firecrawlContext = await getFirecrawlContextForTopic(args.topic, { maxChars: 1200 });
+  } catch {}
   const groundedAddition = firecrawlContext
-    ? `\nGrounded reference for this topic (Firecrawl scrape — use to spot misconceptions, don't quote verbatim, keep Socratic tone):\n${firecrawlContext.slice(0, 1200)}\n`
+    ? `\nGrounded reference for this topic (${getFirecrawlApiKey() ? "Firecrawl scrape" : "built-in grounding"} — use to spot misconceptions, don't quote verbatim, keep Socratic tone):\n${firecrawlContext.slice(0, 1200)}\n`
     : "";
 
   const system =
@@ -573,15 +612,13 @@ export async function rateSessionLLM(args: {
   const prov = getProvider();
   if (prov === "mock") return mockRating(args.topic, args.explanations);
 
-  // Firecrawl context for grounded scoring (spot factual gaps without hallucination)
+  // Firecrawl context for grounded scoring — static fallback even without key
   let firecrawlContext: string | null = null;
-  if (getFirecrawlApiKey()) {
-    try {
-      firecrawlContext = await getFirecrawlContextForTopic(args.topic, { maxChars: 1500 });
-    } catch {}
-  }
+  try {
+    firecrawlContext = await getFirecrawlContextForTopic(args.topic, { maxChars: 1500 });
+  } catch {}
   const groundedAddition = firecrawlContext
-    ? `\nGrounded reference for "${args.topic}" (Firecrawl scrape — use to check factual correctness, but judge clarity/simplicity, not just recall):\n${firecrawlContext.slice(0, 1500)}\n`
+    ? `\nGrounded reference for "${args.topic}" (${getFirecrawlApiKey() ? "Firecrawl scrape" : "built-in grounding"} — use to check factual correctness, but judge clarity/simplicity, not just recall):\n${firecrawlContext.slice(0, 1500)}\n`
     : "";
 
   const system =
@@ -699,8 +736,9 @@ export const scrapeUrl = action({
 });
 
 /**
- * Get grounded context for a topic via Firecrawl (search → scrape top hit → fallback to Wikipedia).
+ * Get grounded context for a topic via Firecrawl (search → scrape top hit → fallback to Wikipedia → static map).
  * Returns markdown excerpt suitable to prepend to LLM prompts for factual grounding.
+ * Works even without FIRECRAWL_API_KEY thanks to static fallback — still grounded, just not live.
  */
 export const fetchTopicContext = action({
   args: {
@@ -708,11 +746,16 @@ export const fetchTopicContext = action({
     maxChars: v.optional(v.number()),
   },
   handler: async (_ctx, args) => {
-    const apiKey = getFirecrawlApiKey();
-    if (!apiKey) return { context: null as string | null, error: "FIRECRAWL_API_KEY not set", provider: getProvider() };
     const ctxText = await getFirecrawlContextForTopic(args.topic, { maxChars: args.maxChars ?? 3500 });
-    if (!ctxText) return { context: null as string | null, error: "No context found", topic: args.topic, provider: getProvider() };
-    return { context: ctxText, urlHint: `firecrawl:topic:${args.topic}`, provider: getProvider() };
+    if (!ctxText) return { context: null as string | null, error: "No context found", topic: args.topic, provider: getProvider(), grounded: false as const };
+    const isFirecrawl = !!getFirecrawlApiKey();
+    return {
+      context: ctxText,
+      urlHint: `${isFirecrawl ? "firecrawl" : "static"}:topic:${args.topic}`,
+      provider: getProvider(),
+      grounded: true as const,
+      source: (isFirecrawl ? "firecrawl" : "static") as "firecrawl" | "static",
+    };
   },
 });
 
