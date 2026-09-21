@@ -4,7 +4,7 @@
 - **Event:** Convex All Gas Hackathon
 - **What it does:** Feynman metaverse plaza — explain any topic to an AI sensei, get scored 1–10, and evolve your avatar unlocking characters, auras and regions; live 2D world with AI NPCs (new dialogue each interaction) and real meta avatars, realtime movement and voice
 - **Live app:** https://graceful-buzzard-759.convex.site
-- **Repo:** https://github.com/Sahiiil1406/Aevora
+- **Repo:** https://github.com/Sahiiil1406/Feymon
 - **Frontend:** Convex static hosting
 - **Convex deployment:** https://graceful-buzzard-759.convex.cloud
 - **Components:** @convex-dev/static-hosting
