@@ -3,9 +3,7 @@
 > **Learn by explaining. Evolve your avatar.**
 > A live 2D plaza where you explain any topic to an AI sensei, get scored 1–10, and evolve — unlocking skins, auras and regions. Walk, talk, get challenged, get rated, level up.
 
-**Live app:** https://graceful-buzzard-759.convex.site · **Repo:** https://github.com/Sahiiil1406/Aevora · **Convex:** https://graceful-buzzard-759.convex.cloud  
-**Hackathon:** [Convex All Gas](https://www.convex.dev/hackathons/all-gas) · Kickoff Aug 25 → Submissions Sep 22 12:00 PM PT · Build log `hackathon.md` at root
-
+**Live app:** https://graceful-buzzard-759.convex.site 
 ---
 
 ## What it does
