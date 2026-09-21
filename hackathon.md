@@ -9,8 +9,8 @@
 - **Convex deployment:** https://graceful-buzzard-759.convex.cloud
 - **Components:** @convex-dev/static-hosting
 - **Convex features:** schema, tables, indexes, queries, mutations, actions, crons, realtime queries
-- **Auth:** Simple name-only (Convex) — same name → same character & progression
-- **AI models:** gpt-4o-mini, gemini-1.5-flash
+- **Auth:**Convex Auth
+- **AI models:** gpt-4o-mini
 - **Started:** 2026-08-26T15:44:36Z
 - **Last updated:** 2026-09-18T20:02:59Z
 
